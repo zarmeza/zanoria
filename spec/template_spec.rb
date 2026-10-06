@@ -58,6 +58,23 @@ RSpec.describe CarrotHandoff::Template do
     expect(second).not_to include('- Worktree: clean')
   end
 
+  it 'replaces a hand-edited State with fresh git facts' do
+    # The failure this guards: State is written into the file, so filling it
+    # "only when empty" would never re-fill it, and the note would go stale
+    # permanently — claiming a clean branch that no longer exists.
+    stale = CarrotHandoff::Record.new(
+      { task: 'A task.', state: "- Branch: `deleted`\n- Worktree: clean" }
+    )
+    allow(CarrotHandoff::Git).to receive_messages(
+      branch: 'main', head: 'abc1234', dirty_files: [], recent_commits: []
+    )
+
+    output = described_class.render(stale)
+
+    expect(output).to include('- Branch: `main`')
+    expect(output).not_to include('deleted')
+  end
+
   describe '.observed_state' do
     it 'reports branch, HEAD, worktree and recent commits' do
       in_repo do |dir|

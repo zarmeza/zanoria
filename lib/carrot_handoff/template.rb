@@ -35,10 +35,12 @@ module CarrotHandoff
       body = record[key].to_s
       body = '' if PROMPT_RE.match?(body.strip)
 
-      # State is machine-derived, so it is filled from git whenever the file
-      # does not already carry a hand-written version. This must come before the
-      # generic prompt, or the state section would never be populated.
-      body = observed_state if key == :state && body.strip.empty?
+      # State is machine-derived, so it is replaced on every render rather than
+      # preserved. Preserving it would freeze the note at whatever the worktree
+      # looked like the first time it was saved — the file would then claim a
+      # clean branch that no longer exists. Anything a human wants to say about
+      # the state of the work belongs in Decisions or Open questions.
+      body = observed_state if key == :state
       body = prompt_for(key) if prompt && body.strip.empty?
 
       body.strip
