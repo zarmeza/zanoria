@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Handoff
+module CarrotHandoff
   # A parsed handoff note.
   #
   # The file format is markdown with `## Section` headings. Parsing is tolerant:

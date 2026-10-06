@@ -2,7 +2,7 @@
 
 require 'fileutils'
 
-module Handoff
+module CarrotHandoff
   # Reading and writing the note on disk.
   module Store
     module_function

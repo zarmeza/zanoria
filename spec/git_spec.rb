@@ -3,10 +3,10 @@
 require 'tmpdir'
 require 'open3'
 
-require_relative '../lib/handoff'
+require_relative '../lib/carrot_handoff'
 require_relative 'spec_helper'
 
-RSpec.describe Handoff::Git do
+RSpec.describe CarrotHandoff::Git do
   it 'reports the repo root' do
     in_repo do |dir|
       expect(described_class.root).to eq(File.realpath(dir))

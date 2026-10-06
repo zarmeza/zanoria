@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require_relative '../lib/handoff'
+require_relative '../lib/carrot_handoff'
 require_relative 'spec_helper'
 
-RSpec.describe Handoff::CLI do
+RSpec.describe CarrotHandoff::CLI do
   # Run the CLI against an explicit stream pair, with the process cwd set to the
   # fixture repo, and return [status, stdout, stderr].
   def run_cli(argv, dir:, out: StringIO.new, err: StringIO.new)
     original = Dir.pwd
     Dir.chdir(dir)
-    Handoff::Git.reset!
+    CarrotHandoff::Git.reset!
     status = described_class.new(out: out, err: err).run(argv)
     [status, out.string, err.string]
   ensure
     Dir.chdir(original)
-    Handoff::Git.reset!
+    CarrotHandoff::Git.reset!
   end
 
   describe 'help' do
@@ -46,7 +46,7 @@ RSpec.describe Handoff::CLI do
         expect(status).to eq(0)
         expect(out).to include('Wrote')
 
-        record = Handoff::Record.load(File.join(dir, '.handoff.md'))
+        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
         expect(record.task).to eq('Upgrade Rails')
       end
     end
@@ -62,7 +62,7 @@ RSpec.describe Handoff::CLI do
 
     it 'warns when the note is already tracked' do
       in_repo do |dir|
-        commit_all(dir, filename: '.handoff.md')
+        commit_all(dir, filename: '.carrot.md')
         _, out, = run_cli(['save', 'A task'], dir: dir)
 
         expect(out).to include('tracked by git')
@@ -73,14 +73,14 @@ RSpec.describe Handoff::CLI do
       in_repo do |dir|
         commit_all(dir)
         run_cli(['save', 'Original task'], dir: dir)
-        path = File.join(dir, '.handoff.md')
+        path = File.join(dir, '.carrot.md')
 
         # Fill in a section by hand, the way an agent would. The "Decisions"
         # prompt is the first one on the page, so replace that whole line.
         File.write(path, File.read(path).sub(/^_TODO: .*_$/, 'Chose X over Y:'))
 
         run_cli(['save', 'Better task'], dir: dir)
-        record = Handoff::Record.load(path)
+        record = CarrotHandoff::Record.load(path)
 
         expect(record.task).to eq('Better task')
         expect(record.decisions).to eq('Chose X over Y:')
@@ -89,7 +89,7 @@ RSpec.describe Handoff::CLI do
 
     it 'fails outside a git repository' do
       Dir.mktmpdir do |dir|
-        allow(Handoff::Git).to receive(:root).and_return(nil)
+        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
         status, _out, err = run_cli(['save', 'A task'], dir: dir)
 
         expect(status).to eq(1)
@@ -131,7 +131,7 @@ RSpec.describe Handoff::CLI do
 
         expect(status).to eq(0)
         expect(out).to include('task:     Ship the thing')
-        expect(out).to include('.handoff.md')
+        expect(out).to include('.carrot.md')
         # State is machine-derived, so it is not counted: five human sections.
         expect(out).to match(%r{sections: \d+/5 written})
       end
@@ -143,14 +143,14 @@ RSpec.describe Handoff::CLI do
         status, out, = run_cli(['status'], dir: dir)
 
         expect(status).to eq(1)
-        expect(out).to include('no handoff')
+        expect(out).to include('no handoff note')
       end
     end
 
     it 'notes sections outside the canonical list' do
       in_repo do |dir|
         commit_all(dir)
-        path = File.join(dir, '.handoff.md')
+        path = File.join(dir, '.carrot.md')
         File.write(path, "## Task\n\nA.\n\n## Deployment notes\n\nHeroku.\n")
 
         _, out, = run_cli(['status'], dir: dir)
@@ -168,7 +168,7 @@ RSpec.describe Handoff::CLI do
 
         expect(status).to eq(0)
         expect(out).to include('Removed')
-        expect(File.exist?(File.join(dir, '.handoff.md'))).to be(false)
+        expect(File.exist?(File.join(dir, '.carrot.md'))).to be(false)
       end
     end
 
@@ -189,7 +189,7 @@ RSpec.describe Handoff::CLI do
         status, out, = run_cli(['path'], dir: dir)
 
         expect(status).to eq(0)
-        expect(out.strip).to eq(File.join(File.realpath(dir), '.handoff.md'))
+        expect(out.strip).to eq(File.join(File.realpath(dir), '.carrot.md'))
       end
     end
   end

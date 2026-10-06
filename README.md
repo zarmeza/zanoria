@@ -1,29 +1,30 @@
-# handoff
+# carrot-handoff
 
 Carry a task between AI coding agents without losing the thread.
 
-One agent runs out of tokens, you open another, and the reasoning that got you
-halfway is gone. `handoff` puts the state of the task in a file next to the
-code, so the next agent can pick it up cold.
+You are working with one agent until it runs out of tokens, then you switch to
+another, and the reasoning that got you halfway died with the session.
+`carrot-handoff` puts the state of the task in a file next to the code, so the
+next agent can pick it up cold.
 
-The note is `.handoff.md`, committed to the repo. It is plain markdown on
+The note is `.carrot.md`, committed to the repo. It is plain markdown on
 purpose: any agent can read it without an integration, a plugin, or a hook.
 
-[![CI](https://github.com/zarmeza/handoff/actions/workflows/ci.yml/badge.svg)](https://github.com/zarmeza/handoff/actions/workflows/ci.yml)
+[![CI](https://github.com/zarmeza/carrot-handoff/actions/workflows/ci.yml/badge.svg)](https://github.com/zarmeza/carrot-handoff/actions/workflows/ci.yml)
 [![Ruby](https://img.shields.io/badge/ruby-4.0.7-red.svg)](https://www.ruby-lang.org/)
 
 ## Usage
 
 ```console
-$ handoff save "Upgrade omniauth-facebook"
-Wrote /home/zarmeza/Developer/omnisearch-rails/.handoff.md (untracked — commit it so the next tool sees it)
+$ carrot-handoff save "Upgrade omniauth-facebook"
+Wrote /home/zarmeza/Developer/omnisearch-rails/.carrot.md (untracked — commit it so the next tool sees it)
 
-$ handoff status
+$ carrot-handoff status
 task:     Upgrade omniauth-facebook
-file:     /home/zarmeza/Developer/omnisearch-rails/.handoff.md
+file:     /home/zarmeza/Developer/omnisearch-rails/.carrot.md
 sections: 1/5 written
 
-$ handoff load
+$ carrot-handoff load
 ## Task
 
 Upgrade omniauth-facebook
@@ -38,11 +39,11 @@ Upgrade omniauth-facebook
 
 | Command | Does |
 |---|---|
-| `handoff save [TASK]` | Write or update the note. Preserves sections you already wrote. |
-| `handoff load` | Print the note. |
-| `handoff status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. |
-| `handoff clear` | Delete the note. |
-| `handoff path` | Print the note's absolute path. |
+| `carrot-handoff save [TASK]` | Write or update the note. Preserves sections you already wrote. |
+| `carrot-handoff load` | Print the note. |
+| `carrot-handoff status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. |
+| `carrot-handoff clear` | Delete the note. |
+| `carrot-handoff path` | Print the note's absolute path. |
 
 Aliases: `new` for `save`, `show`/`cat` for `load`, `st` for `status`, `rm` for
 `clear`.
@@ -68,7 +69,7 @@ Empty sections get a `_TODO:` prompt rather than being omitted, so the shape of
 the note is visible. Prompts are regenerated on each save and never accumulate
 as content, which makes repeated `save` calls idempotent.
 
-Any heading `handoff` does not recognize is kept. `handoff status` lists them
+Any heading `carrot-handoff` does not recognize is kept, and `status` lists it
 under `extra:` so a hand-written section is never silently dropped.
 
 ## Wiring it into an agent
@@ -76,10 +77,11 @@ under `extra:` so a hand-written section is never silently dropped.
 There is nothing to install. Two lines in the project's `AGENTS.md` is enough:
 
 ```markdown
-Before starting work in this repository, run `handoff load`. If a note exists,
-it describes work already in progress — read it and follow its `Next action`.
+Before starting work in this repository, run `carrot-handoff load`. If a note
+exists, it describes work already in progress — read it and follow its
+`Next action`.
 
-Before you finish, run `handoff save "<one-line task>"` and fill in the
+Before you finish, run `carrot-handoff save "<one-line task>"` and fill in the
 `Tried and failed` and `Decisions` sections with what you actually learned.
 ```
 
@@ -112,10 +114,10 @@ $ bundle exec rubocop
 Ruby 4.0.7. No runtime dependencies — `open3` and `json` are stdlib.
 
 Specs build real throwaway git repositories in a tmpdir rather than stubbing
-`Git`, so the shell-outs are actually exercised.
+`CarrotHandoff::Git`, so the shell-outs are actually exercised.
 
 CI runs three jobs on every push: **Specs**, **RuboCop**, and a **CLI smoke
-test** that drives `bin/handoff` in a throwaway repo — `help`, a
+test** that drives `bin/carrot-handoff` in a throwaway repo — `help`, a
 save/status/load round trip, and a check that it exits non-zero outside a
 repository. Specs passing on one laptop is not evidence for anyone else, and a
 portfolio project needs the evidence to be reproducible.
@@ -123,14 +125,14 @@ portfolio project needs the evidence to be reproducible.
 ## Layout
 
 ```text
-bin/handoff              entry point
-lib/handoff.rb           FILENAME, Repo (path lookups), Error
-lib/handoff/git.rb       git binary wrapper; returns nil, never raises
-lib/handoff/record.rb    markdown in, sections out
-lib/handoff/store.rb     file IO
-lib/handoff/template.rb  note rendering, git state assembly
-lib/handoff/cli.rb       argument dispatch
-spec/                    45 examples
-.handoff.md              this repo's own handoff note
-AGENTS.md                conventions for agents working here
+bin/carrot-handoff             entry point
+lib/carrot_handoff.rb          FILENAME, Repo (path lookups), Error
+lib/carrot_handoff/git.rb      git binary wrapper; returns nil, never raises
+lib/carrot_handoff/record.rb   markdown in, sections out
+lib/carrot_handoff/store.rb    file IO
+lib/carrot_handoff/template.rb note rendering, git state assembly
+lib/carrot_handoff/cli.rb      argument dispatch
+spec/                          45 examples
+.carrot.md                     this repo's own handoff note
+AGENTS.md                      conventions for agents working here
 ```

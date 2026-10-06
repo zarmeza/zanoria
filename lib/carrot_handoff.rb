@@ -5,8 +5,8 @@
 #
 # The format is deliberately plain text. Any tool can read a markdown file, so
 # nothing here depends on the agent that wrote it.
-module Handoff
-  FILENAME = '.handoff.md'
+module CarrotHandoff
+  FILENAME = '.carrot.md'
 
   # Convenience wrappers over the repo a note belongs to.
   module Repo
@@ -19,9 +19,9 @@ module Handoff
 
     def path
       root = self.root
-      raise Handoff::Error, 'not inside a git repository' unless root
+      raise CarrotHandoff::Error, 'not inside a git repository' unless root
 
-      File.join(root, Handoff::FILENAME)
+      File.join(root, CarrotHandoff::FILENAME)
     end
 
     def exists?
@@ -39,9 +39,9 @@ module Handoff
   class Error < StandardError; end
 end
 
-require_relative 'handoff/version'
-require_relative 'handoff/git'
-require_relative 'handoff/record'
-require_relative 'handoff/store'
-require_relative 'handoff/template'
-require_relative 'handoff/cli'
+require_relative 'carrot_handoff/version'
+require_relative 'carrot_handoff/git'
+require_relative 'carrot_handoff/record'
+require_relative 'carrot_handoff/store'
+require_relative 'carrot_handoff/template'
+require_relative 'carrot_handoff/cli'

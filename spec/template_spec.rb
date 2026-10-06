@@ -1,32 +1,32 @@
 # frozen_string_literal: true
 
-require_relative '../lib/handoff'
+require_relative '../lib/carrot_handoff'
 require_relative 'spec_helper'
 
-RSpec.describe Handoff::Template do
+RSpec.describe CarrotHandoff::Template do
   it 'renders every canonical section in order' do
-    record = Handoff::Record.new({ task: 'A task.' })
+    record = CarrotHandoff::Record.new({ task: 'A task.' })
     output = described_class.render(record)
 
     headings = output.lines.grep(/\A## /)
-    expect(headings).to eq(Handoff::Record::SECTIONS.values.map { |h| "## #{h}\n" })
+    expect(headings).to eq(CarrotHandoff::Record::SECTIONS.values.map { |h| "## #{h}\n" })
   end
 
   it 'fills empty sections with prompts when asked' do
-    output = described_class.render(Handoff::Record.new({ task: 'A task.' }))
+    output = described_class.render(CarrotHandoff::Record.new({ task: 'A task.' }))
 
     expect(output).to include('_TODO:')
     expect(output).to include('Tried and failed')
   end
 
   it 'omits prompts when prompt is false' do
-    output = described_class.render(Handoff::Record.new({ task: 'A task.' }), prompt: false)
+    output = described_class.render(CarrotHandoff::Record.new({ task: 'A task.' }), prompt: false)
 
     expect(output).not_to include('_TODO')
   end
 
   it 'keeps written content and only prompts the rest' do
-    record = Handoff::Record.new({ task: 'A task.', attempts: 'Tried X. Failed.' })
+    record = CarrotHandoff::Record.new({ task: 'A task.', attempts: 'Tried X. Failed.' })
     output = described_class.render(record)
 
     expect(output).to include('Tried X. Failed.')
@@ -34,11 +34,11 @@ RSpec.describe Handoff::Template do
   end
 
   it 'fills State from git instead of prompting for it' do
-    allow(Handoff::Git).to receive_messages(
+    allow(CarrotHandoff::Git).to receive_messages(
       branch: 'main', head: 'abc1234', dirty_files: [], recent_commits: []
     )
 
-    output = described_class.render(Handoff::Record.new({ task: 'A task.' }))
+    output = described_class.render(CarrotHandoff::Record.new({ task: 'A task.' }))
 
     expect(output).to include('- Branch: `main`')
     expect(output).to include('- Worktree: clean')
@@ -46,13 +46,13 @@ RSpec.describe Handoff::Template do
   end
 
   it 'regenerates State on a second save instead of freezing the old one' do
-    allow(Handoff::Git).to receive_messages(
+    allow(CarrotHandoff::Git).to receive_messages(
       branch: 'main', head: 'abc1234', dirty_files: ['a.rb'], recent_commits: []
     )
 
     # Render, parse back, render again — what two consecutive saves do.
-    first = described_class.render(Handoff::Record.new({ task: 'A task.' }))
-    second = described_class.render(Handoff::Record.parse(first))
+    first = described_class.render(CarrotHandoff::Record.new({ task: 'A task.' }))
+    second = described_class.render(CarrotHandoff::Record.parse(first))
 
     expect(second).to include('- Uncommitted: 1 file(s)')
     expect(second).not_to include('- Worktree: clean')
@@ -62,7 +62,7 @@ RSpec.describe Handoff::Template do
     it 'reports branch, HEAD, worktree and recent commits' do
       in_repo do |dir|
         commit_all(dir, message: 'First commit')
-        Handoff::Git.reset!
+        CarrotHandoff::Git.reset!
         File.write(File.join(dir, 'dirty.txt'), 'x')
 
         state = described_class.observed_state
@@ -77,7 +77,7 @@ RSpec.describe Handoff::Template do
     it 'reports a clean worktree' do
       in_repo do |dir|
         commit_all(dir)
-        Handoff::Git.reset!
+        CarrotHandoff::Git.reset!
 
         expect(described_class.observed_state).to include('Worktree: clean')
       end
@@ -87,7 +87,7 @@ RSpec.describe Handoff::Template do
       in_repo do |dir|
         commit_all(dir)
         25.times { |i| File.write(File.join(dir, "f#{i}.txt"), 'x') }
-        Handoff::Git.reset!
+        CarrotHandoff::Git.reset!
 
         state = described_class.observed_state
         expect(state).to include('Uncommitted: 25 file(s)')
@@ -96,7 +96,7 @@ RSpec.describe Handoff::Template do
     end
 
     it 'says so plainly when git reports nothing at all' do
-      allow(Handoff::Git).to receive_messages(
+      allow(CarrotHandoff::Git).to receive_messages(
         branch: nil, head: nil, dirty_files: [], recent_commits: []
       )
 
@@ -104,10 +104,10 @@ RSpec.describe Handoff::Template do
     end
 
     it 'survives a git binary that is not installed' do
-      allow(Handoff::Git).to receive_messages(
+      allow(CarrotHandoff::Git).to receive_messages(
         branch: nil, head: nil, dirty_files: [], recent_commits: []
       )
-      allow(Handoff::Git).to receive(:dirty_files).and_raise(Errno::ENOENT)
+      allow(CarrotHandoff::Git).to receive(:dirty_files).and_raise(Errno::ENOENT)
 
       expect { described_class.observed_state }.not_to raise_error
     end

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative '../lib/handoff'
+require_relative '../lib/carrot_handoff'
 
-RSpec.describe Handoff::Record do
+RSpec.describe CarrotHandoff::Record do
   describe '.parse' do
     it 'splits on level-two headings' do
       record = described_class.parse(<<~MD)

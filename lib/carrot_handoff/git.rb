@@ -2,7 +2,7 @@
 
 require 'open3'
 
-module Handoff
+module CarrotHandoff
   # Thin wrapper over the `git` binary.
   #
   # Everything here degrades to nil rather than raising. A handoff note is still

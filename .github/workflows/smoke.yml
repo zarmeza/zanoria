@@ -18,7 +18,7 @@ jobs:
 
       # Exercise the binary the way a user would, in a throwaway repo.
       - name: help
-        run: bin/handoff help
+        run: bin/carrot-handoff help
 
       - name: save and load round trip
         run: |
@@ -30,14 +30,14 @@ jobs:
           echo hello > file.txt
           git add -A
           git commit --quiet -m "first"
-          "$GITHUB_WORKSPACE/bin/handoff" save "CI smoke test"
-          "$GITHUB_WORKSPACE/bin/handoff" status
-          "$GITHUB_WORKSPACE/bin/handoff" load
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" save "CI smoke test"
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" status
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" load
 
       - name: fails cleanly outside a repository
         run: |
           cd "$RUNNER_TEMP"
-          if "$GITHUB_WORKSPACE/bin/handoff" save "x"; then
+          if "$GITHUB_WORKSPACE/bin/carrot-handoff" save "x"; then
             echo "expected a non-zero exit outside a repository"
             exit 1
           fi

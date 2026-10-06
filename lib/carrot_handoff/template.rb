@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Handoff
+module CarrotHandoff
   # Renders the note.
   #
   # The design goal is that the sections a machine can fill in are filled in,

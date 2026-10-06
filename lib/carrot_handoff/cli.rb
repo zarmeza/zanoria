@@ -1,24 +1,26 @@
 # frozen_string_literal: true
 
-module Handoff
+module CarrotHandoff
   # Command line entry point.
   #
-  # Commands are intentionally few: save, load, status, agents. Everything runs
-  # on plain text on disk, so no agent integration is required to read or write
-  # a note.
+  # Commands are intentionally few: save, load, status, clear, path. Everything
+  # runs on plain text on disk, so no agent integration is required to read or
+  # write a note.
   class CLI
+    NAME = 'carrot-handoff'
+
     USAGE = <<~TEXT.freeze
-      handoff — carry a task between agent tools
+      #{NAME} — carry a task between agent tools
 
       Usage:
-        handoff save [TASK]   write or update #{Handoff::FILENAME} for the current repo
-        handoff load           print the current handoff note
-        handoff status         one-line summary, for a quick check
-        handoff clear          delete the current handoff note
-        handoff path           print the note's absolute path
-        handoff help           this message
+        #{NAME} save [TASK]   write or update #{CarrotHandoff::FILENAME} for the current repo
+        #{NAME} load          print the current handoff note
+        #{NAME} status        one-line summary, for a quick check
+        #{NAME} clear         delete the current handoff note
+        #{NAME} path          print the note's absolute path
+        #{NAME} help          this message
 
-      In an agent session, start with `handoff load` before working on anything
+      In an agent session, start with `#{NAME} load` before working on anything
       a previous session left behind.
     TEXT
 
@@ -50,13 +52,13 @@ module Handoff
       # `send`, not `public_send`: the command implementations are private, and
       # the only path here is via COMMANDS, which is a closed set.
       send(command, argv)
-    rescue Handoff::Error => e
-      @err.puts "handoff: #{e.message}"
+    rescue CarrotHandoff::Error => e
+      @err.puts "#{NAME}: #{e.message}"
       1
     end
 
     def usage(status, error = nil)
-      @err.puts "handoff: #{error}" if error
+      @err.puts "#{NAME}: #{error}" if error
       @err.puts unless error.nil?
       @out.puts USAGE
       status
@@ -67,7 +69,7 @@ module Handoff
     def save(argv)
       ensure_repo!
 
-      path = Handoff::Repo.path
+      path = CarrotHandoff::Repo.path
       existing = Store.read_or_empty(path)
       task = argv.join(' ').strip
 
@@ -77,7 +79,7 @@ module Handoff
       record = Record.new(sections, path: path)
       Store.write(path, Template.render(record))
 
-      if Git.tracked?(Handoff::FILENAME)
+      if Git.tracked?(CarrotHandoff::FILENAME)
         @out.puts "Wrote #{path} (tracked by git — remember to commit it)"
       else
         @out.puts "Wrote #{path} (untracked — commit it so the next tool sees it)"
@@ -89,29 +91,29 @@ module Handoff
     def load(_argv = [])
       ensure_repo!
 
-      unless Handoff::Repo.exists?
-        @err.puts "handoff: no #{Handoff::FILENAME} in #{Handoff::Repo.root}"
+      unless CarrotHandoff::Repo.exists?
+        @err.puts "#{NAME}: no #{CarrotHandoff::FILENAME} in #{CarrotHandoff::Repo.root}"
         @err.puts 'Nothing was handed off yet.'
         return 1
       end
 
-      @out.puts File.read(Handoff::Repo.path)
+      @out.puts File.read(CarrotHandoff::Repo.path)
       0
     end
 
     def status(_argv = [])
       ensure_repo!
 
-      unless Handoff::Repo.exists?
-        @out.puts 'no handoff'
+      unless CarrotHandoff::Repo.exists?
+        @out.puts 'no handoff note'
         return 1
       end
 
-      record = Handoff::Repo.current
+      record = CarrotHandoff::Repo.current
       task = record.task.strip.lines.first.to_s.strip
 
       @out.puts "task:     #{task.empty? ? '_(not written)_' : task}"
-      @out.puts "file:     #{Handoff::Repo.path}"
+      @out.puts "file:     #{CarrotHandoff::Repo.path}"
       @out.puts "sections: #{written_summary(record)}"
       @out.puts "extra:    #{extra_summary(record)}" unless record.extra_sections.empty?
 
@@ -135,7 +137,7 @@ module Handoff
     def clear(_argv = [])
       ensure_repo!
 
-      path = Handoff::Repo.path
+      path = CarrotHandoff::Repo.path
       unless File.exist?(path)
         @out.puts "nothing to clear (#{path} does not exist)"
         return 0
@@ -148,15 +150,15 @@ module Handoff
 
     def path(_argv = [])
       ensure_repo!
-      @out.puts Handoff::Repo.path
+      @out.puts CarrotHandoff::Repo.path
       0
     end
 
     def ensure_repo!
       Git.reset!
-      return if Handoff::Repo.root
+      return if CarrotHandoff::Repo.root
 
-      raise Handoff::Error, 'not inside a git repository'
+      raise CarrotHandoff::Error, 'not inside a git repository'
     end
   end
 end

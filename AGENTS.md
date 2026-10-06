@@ -1,4 +1,4 @@
-# Handoff Agent Guide
+# CarrotHandoff Agent Guide
 
 Guidance for AI coding agents working in this repository. Two sections matter:
 **Conventions** and **The handoff loop**.
@@ -7,12 +7,12 @@ Guidance for AI coding agents working in this repository. Two sections matter:
 
 ## 1. What this is
 
-A small Ruby CLI that writes a committed `.handoff.md` beside the code so a
+A small Ruby CLI that writes a committed `.carrot.md` beside the code so a
 different agent tool can pick up an in-progress task without the conversation.
 Plain markdown output on purpose — no agent integration required to read it.
 
 - Ruby 4.0.7, zero runtime dependencies (`open3` and `json` are stdlib).
-- CLI at `bin/handoff`, implementation in `lib/handoff/`.
+- CLI at `bin/carrot-handoff`, implementation in `lib/carrot_handoff/`.
 
 ---
 
@@ -23,7 +23,7 @@ Plain markdown output on purpose — no agent integration required to read it.
 Before starting work:
 
 ```console
-$ bin/handoff load
+$ bin/carrot-handoff load
 ```
 
 If a note exists, it describes work already in progress. Follow its
@@ -32,7 +32,7 @@ If a note exists, it describes work already in progress. Follow its
 Before finishing:
 
 ```console
-$ bin/handoff save "<one-line task>"
+$ bin/carrot-handoff save "<one-line task>"
 ```
 
 Then fill in, by hand, the sections only a human or agent can know:
@@ -51,13 +51,13 @@ swap. `State` is machine-derived and regenerates on every save; do not edit it.
 
 ## 3. Commands
 
-| Command | Purpose |
+| Command | Does |
 |---|---|
-| `bin/handoff save [TASK]` | Write or update the note. Preserves written sections. |
-| `bin/handoff load` | Print the note. |
-| `bin/handoff status` | Task plus how many of five human sections are filled. |
-| `bin/handoff clear` | Delete the note. |
-| `bin/handoff path` | Absolute path to the note. |
+| `bin/carrot-handoff save [TASK]` | Write or update the note. Keeps sections. |
+| `bin/carrot-handoff load` | Print the note. |
+| `bin/carrot-handoff status` | Task plus count of five human sections set. |
+| `bin/carrot-handoff clear` | Delete the note. |
+| `bin/carrot-handoff path` | Absolute path to the note. |
 
 ---
 
@@ -68,7 +68,7 @@ $ bundle install                       # once
 $ bundle exec rake                    # specs + rubocop (default task)
 $ bundle exec rspec                   # 45 examples
 $ bundle exec rubocop                 # lint
-$ ruby -Ilib -e 'require "handoff"'   # smoke check
+$ ruby -Ilib -e 'require "carrot_handoff"'   # smoke check
 ```
 
 `bundle exec rake` is the gate: both specs and RuboCop must be clean.
@@ -78,42 +78,43 @@ $ ruby -Ilib -e 'require "handoff"'   # smoke check
 ## 5. Layout
 
 ```text
-bin/handoff              entry point
-lib/handoff.rb           FILENAME, Repo (path lookups), Error
-lib/handoff/git.rb       git binary wrapper; returns nil, never raises
-lib/handoff/record.rb    markdown in, sections out
-lib/handoff/store.rb     file IO
-lib/handoff/template.rb  note rendering, git state assembly
-lib/handoff/cli.rb       argument dispatch
-spec/                    45 examples
-.handoff.md              current task note (committed)
+bin/carrot-handoff             entry point
+lib/carrot_handoff.rb          FILENAME, Repo (path lookups), Error
+lib/carrot_handoff/git.rb      git binary wrapper; returns nil, never raises
+lib/carrot_handoff/record.rb   markdown in, sections out
+lib/carrot_handoff/store.rb    file IO
+lib/carrot_handoff/template.rb note rendering, git state assembly
+lib/carrot_handoff/cli.rb      argument dispatch
+spec/                          45 examples
+.carrot.md                     current task note (committed)
 ```
 
 ---
 
 ## 6. Conventions
 
-**Git access is read-only and must never raise.** `Handoff::Git` shells out via
-`Open3.capture2` with `err: File::NULL` and returns `nil` on any failure —
-non-zero exit, empty output, missing binary. Callers handle `nil`, so never
-assume a git call succeeded. `Template.observed_state` additionally rescues
-`StandardError`, because a failed note is worse than a partial one.
+**Git access is read-only and must never raise.** `CarrotHandoff::Git` shells
+out via `Open3.capture2` with `err: File::NULL` and returns `nil` on any failure
+— non-zero exit, empty output, missing binary. Callers handle `nil`, so never
+assume a git call succeeded. `CarrotHandoff::Template.observed_state`
+additionally rescues `StandardError`, because a failed note is worse than a
+partial one.
 
-**Memoize carefully.** `Git.root` caches in `@root`; call `Git.reset!` after
-changing directory or the cache goes stale. Specs do this via the `in_repo`
-helper, which `chdir`s into a tmpdir git repo.
+**Memoize carefully.** `CarrotHandoff::Git.root` caches in `@root`; call
+`CarrotHandoff::Git.reset!` after changing directory or the cache goes stale.
+Specs do this via the `in_repo` helper, which `chdir`s into a tmpdir git repo.
 
-**Parse tolerantly.** `Record.parse` returns empty strings for missing sections
-and keeps unrecognized headings under an `other_` key so a hand-written section
-survives a rewrite. Never let a malformed note raise.
+**Parse tolerantly.** `CarrotHandoff::Record.parse` returns empty strings for
+missing sections and keeps unrecognized headings under an `other_` key so a
+hand-written section survives a rewrite. Never let a malformed note raise.
 
 **Prompts are not content.** A section still holding `_TODO:` counts as empty.
-`Template.body_for` regenerates prompts on every render, which is what makes
-repeated `save` calls idempotent. If you add a section, add it to
-`Record::SECTIONS` and to `Template::PROMPTS`.
+`CarrotHandoff::Template.body_for` regenerates prompts on every render, which is
+what makes repeated `save` calls idempotent. If you add a section, add it to
+`CarrotHandoff::Record::SECTIONS` and to `CarrotHandoff::Template::PROMPTS`.
 
 **Specs build real repositories.** Use the `in_repo` helper and `commit_all`
-from `spec/spec_helper.rb`. Do not stub `Handoff::Git` — the point is to
+from `spec/spec_helper.rb`. Do not stub `CarrotHandoff::Git` — the point is to
 exercise the actual shell-outs. See
 `spec/template_spec.rb` for the pattern of stubbing individual readers when
 testing a render path.
@@ -127,9 +128,9 @@ off. Do not add new exclusions without a comment explaining why.
 
 ## 7. Adding a section
 
-1. Add the key and heading to `Record::SECTIONS`.
-2. Add a prompt to `Template::PROMPTS` unless the section is machine-derived.
-3. Handle it in `Template.body_for` if it needs custom fill behavior.
+1. Add the key and heading to `CarrotHandoff::Record::SECTIONS`.
+2. Add a prompt to `CarrotHandoff::Template::PROMPTS` unless machine-derived.
+3. Handle it in `CarrotHandoff::Template.body_for` if it needs custom fill.
 4. Add parse coverage in `spec/record_spec.rb`.
 
 Order in `SECTIONS` is both display and write order.
