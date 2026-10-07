@@ -127,8 +127,16 @@ This is also AGPL-3.0-free, which matters if it ever ends up somewhere real.
 ```console
 $ bundle install
 $ bundle exec rake        # specs + rubocop
-$ bundle exec rspec       # 45 examples
+$ bundle exec rspec       # 50 examples
 $ bundle exec rubocop
+```
+
+Installed locally with `gem install`, so the `carrot-handoff` command works from
+any directory. It is a snapshot of a release rather than a link to the checkout,
+so rebuild and reinstall after changing `lib/`:
+
+```console
+$ gem build carrot-handoff.gemspec && gem install ./carrot-handoff-*.gem
 ```
 
 Ruby 4.0.7. No runtime dependencies — `open3` and `json` are stdlib.

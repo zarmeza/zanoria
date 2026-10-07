@@ -75,10 +75,15 @@ raises for a missing repository.
 ```console
 $ bundle install                       # once
 $ bundle exec rake                    # specs + rubocop (default task)
-$ bundle exec rspec                   # 45 examples
+$ bundle exec rspec                   # 50 examples
 $ bundle exec rubocop                 # lint
 $ ruby -Ilib -e 'require "carrot_handoff"'   # smoke check
+$ gem build carrot-handoff.gemspec && gem install ./carrot-handoff-*.gem
 ```
+
+The gem is installed locally, so `carrot-handoff` works from any directory. It
+is a snapshot, not a link: after changing `lib/`, rebuild and reinstall, or
+invoke `ruby bin/carrot-handoff` from this checkout to test the working copy.
 
 `bundle exec rake` is the gate: both specs and RuboCop must be clean.
 
