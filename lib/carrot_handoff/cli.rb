@@ -67,7 +67,7 @@ module CarrotHandoff
     private
 
     def save(argv)
-      ensure_repo!
+      prepare!
 
       path = CarrotHandoff::Repo.path
       existing = Store.read_or_empty(path)
@@ -79,7 +79,10 @@ module CarrotHandoff
       record = Record.new(sections, path: path)
       Store.write(path, Template.render(record))
 
-      if Git.tracked?(CarrotHandoff::FILENAME)
+      if !CarrotHandoff::Repo.in_repo?
+        @out.puts "Wrote #{path} (no git repository here — this note will not"
+        @out.puts 'survive a machine swap. Move it into a repo to make it durable.)'
+      elsif Git.tracked?(CarrotHandoff::FILENAME)
         @out.puts "Wrote #{path} (tracked by git — remember to commit it)"
       else
         @out.puts "Wrote #{path} (untracked — commit it so the next tool sees it)"
@@ -89,7 +92,7 @@ module CarrotHandoff
     end
 
     def load(_argv = [])
-      ensure_repo!
+      prepare!
 
       unless CarrotHandoff::Repo.exists?
         @err.puts "#{NAME}: no #{CarrotHandoff::FILENAME} in #{CarrotHandoff::Repo.root}"
@@ -102,7 +105,7 @@ module CarrotHandoff
     end
 
     def status(_argv = [])
-      ensure_repo!
+      prepare!
 
       unless CarrotHandoff::Repo.exists?
         @out.puts 'no handoff note'
@@ -135,7 +138,7 @@ module CarrotHandoff
     end
 
     def clear(_argv = [])
-      ensure_repo!
+      prepare!
 
       path = CarrotHandoff::Repo.path
       unless File.exist?(path)
@@ -149,16 +152,16 @@ module CarrotHandoff
     end
 
     def path(_argv = [])
-      ensure_repo!
+      prepare!
       @out.puts CarrotHandoff::Repo.path
       0
     end
 
-    def ensure_repo!
+    # Discard memoized git state so a note reflects the directory we are in now.
+    # Not an error when there is no repository: `Repo.root` falls back to the
+    # cwd, and the note is written either way.
+    def prepare!
       Git.reset!
-      return if CarrotHandoff::Repo.root
-
-      raise CarrotHandoff::Error, 'not inside a git repository'
     end
   end
 end

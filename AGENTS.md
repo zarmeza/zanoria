@@ -47,6 +47,10 @@ Then fill in, by hand, the sections only a human or agent can know:
 Commit the note. That is what makes it survive a context reset or a machine
 swap. `State` is machine-derived and regenerates on every save; do not edit it.
 
+Save after every real decision rather than only at the end, when work spans
+more than one session. An outage costs minutes if the note is already written
+and the whole thread if it is not.
+
 ---
 
 ## 3. Commands
@@ -58,6 +62,11 @@ swap. `State` is machine-derived and regenerates on every save; do not edit it.
 | `bin/carrot-handoff status` | Task plus count of five human sections set. |
 | `bin/carrot-handoff clear` | Delete the note. |
 | `bin/carrot-handoff path` | Absolute path to the note. |
+
+Outside a git repository the note goes in the current directory and `save`
+warns that it will not survive a machine swap. `Repo.root` falls back to
+`Dir.pwd` and `Repo.in_repo?` reports which case applies; the CLI no longer
+raises for a missing repository.
 
 ---
 

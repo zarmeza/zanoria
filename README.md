@@ -7,6 +7,12 @@ another, and the reasoning that got you halfway died with the session.
 `carrot-handoff` puts the state of the task in a file next to the code, so the
 next agent can pick it up cold.
 
+The two agents do not have to be different tools. The same use case shows up
+when a session dies for reasons that have nothing to do with tokens — a dropped
+connection, a power cut, a machine that had to be rebooted — and you come back
+to the same agent with none of the thread. From the note's point of view it is
+the identical problem.
+
 The note is `.carrot.md`, committed to the repo. It is plain markdown on
 purpose: any agent can read it without an integration, a plugin, or a hook.
 
@@ -87,6 +93,20 @@ Before you finish, run `carrot-handoff save "<one-line task>"` and fill in the
 
 Commit the note. That is what makes it survive a context reset and a machine
 swap.
+
+### Outside a git repository
+
+`save` writes to the current directory when there is no repository, and says so:
+
+```console
+$ cd ~/somewhere/not/a/repo
+$ carrot-handoff save "Investigate the flaky spec"
+Wrote /home/zarmeza/somewhere/not/a/repo/.carrot.md (no git repository here — this note will not
+survive a machine swap. Move it into a repo to make it durable.)
+```
+
+A note in the wrong place is recoverable by moving it. No note is not, and the
+whole point of the tool is that there is one.
 
 ## Why not OpenWolf?
 

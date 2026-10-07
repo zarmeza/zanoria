@@ -22,6 +22,23 @@ RSpec.describe CarrotHandoff::Git do
     end
   end
 
+  it 'falls back to the current directory when there is no repository' do
+    Dir.mktmpdir do |dir|
+      allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+
+      Dir.chdir(dir) do
+        expect(CarrotHandoff::Repo.root).to eq(dir)
+        expect(CarrotHandoff::Repo.in_repo?).to be(false)
+      end
+    end
+  end
+
+  it 'reports in_repo? true inside a repository' do
+    in_repo do
+      expect(CarrotHandoff::Repo.in_repo?).to be(true)
+    end
+  end
+
   it 'reports the current branch and HEAD after a commit' do
     in_repo do |dir|
       commit_all(dir)

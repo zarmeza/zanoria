@@ -87,13 +87,35 @@ RSpec.describe CarrotHandoff::CLI do
       end
     end
 
-    it 'fails outside a git repository' do
+    it 'writes to the current directory when there is no repository' do
       Dir.mktmpdir do |dir|
         allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
-        status, _out, err = run_cli(['save', 'A task'], dir: dir)
+        status, out, = run_cli(['save', 'A task'], dir: dir)
 
-        expect(status).to eq(1)
-        expect(err).to include('not inside a git repository')
+        expect(status).to eq(0)
+        expect(File).to exist(File.join(dir, '.carrot.md'))
+        expect(out).to include('no git repository here')
+      end
+    end
+
+    it 'round trips a note written outside a repository' do
+      Dir.mktmpdir do |dir|
+        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        run_cli(['save', 'A task'], dir: dir)
+        status, out, = run_cli(['load'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to include('A task')
+      end
+    end
+
+    it 'says the note will not survive a machine swap' do
+      Dir.mktmpdir do |dir|
+        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        _status, out, = run_cli(['save', 'A task'], dir: dir)
+
+        expect(out).to include('will not')
+        expect(out).to include('machine swap')
       end
     end
   end

@@ -12,15 +12,24 @@ module CarrotHandoff
   module Repo
     module_function
 
-    # Root of the repository, or nil when not inside one.
+    # Where the note belongs: the repository root, or the current directory when
+    # there is no repository.
+    #
+    # The cwd fallback is deliberate. Sessions do not always run inside a repo —
+    # a `~/Developer` working directory, a scratch dir — and a note that refuses
+    # to be written is the same as no note at all, which is the failure this tool
+    # exists to prevent. A misplaced note is recoverable; a missing one is not.
     def root
-      Git.root
+      Git.root || Dir.pwd
+    end
+
+    # Whether a repository was found. The note is only durable when true: an
+    # uncommitted file does not survive a machine swap.
+    def in_repo?
+      !Git.root.nil?
     end
 
     def path
-      root = self.root
-      raise CarrotHandoff::Error, 'not inside a git repository' unless root
-
       File.join(root, CarrotHandoff::FILENAME)
     end
 
