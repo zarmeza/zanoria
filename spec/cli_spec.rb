@@ -35,6 +35,131 @@ RSpec.describe CarrotHandoff::CLI do
         expect(out).to include('Usage:')
       end
     end
+
+    it 'lists init first, since it is the command a new repo wants' do
+      in_repo do |dir|
+        _status, out, = run_cli(['help'], dir: dir)
+
+        expect(out.index('init')).to be < out.index('save')
+      end
+    end
+  end
+
+  describe 'init' do
+    it 'creates the note and wires AGENTS.md by default' do
+      in_repo do |dir|
+        commit_all(dir)
+        status, out, = run_cli(['init'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(File).to exist(File.join(dir, '.carrot.md'))
+        expect(File.read(File.join(dir, 'AGENTS.md'))).to include('carrot-handoff:begin')
+        expect(out).to include('created')
+        expect(out).to include('wired')
+      end
+    end
+
+    it 'seeds the task from a positional argument' do
+      in_repo do |dir|
+        commit_all(dir)
+        run_cli(%w[init Upgrade omniauth-facebook], dir: dir)
+
+        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+        expect(record.task).to eq('Upgrade omniauth-facebook')
+      end
+    end
+
+    it 'keeps an existing note and says so' do
+      in_repo do |dir|
+        commit_all(dir)
+        run_cli(['init', 'First task'], dir: dir)
+        run_cli(['save', 'Second task'], dir: dir)
+
+        _status, out, = run_cli(['init', 'Third task'], dir: dir)
+        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+
+        expect(record.task).to eq('Second task')
+        expect(out).to include('kept')
+      end
+    end
+
+    it 'stages both files and prints the commit command' do
+      in_repo do |dir|
+        commit_all(dir)
+        _status, out, = run_cli(['init'], dir: dir)
+
+        expect(out).to include('Staged')
+        expect(out).to include('git commit -m')
+      end
+    end
+
+    it 'accepts --file with a separate path or an equals sign' do
+      in_repo do |dir|
+        commit_all(dir)
+        status, = run_cli(%w[init --file CLAUDE.md --file=docs/AGENTS.md], dir: dir)
+
+        expect(status).to eq(0)
+        expect(File).to exist(File.join(dir, 'CLAUDE.md'))
+        expect(File).to exist(File.join(dir, 'docs', 'AGENTS.md'))
+        expect(File).not_to exist(File.join(dir, 'AGENTS.md'))
+      end
+    end
+
+    it 'resolves the repository root when run from a subdirectory' do
+      in_repo do |dir|
+        commit_all(dir)
+        FileUtils.mkdir_p(File.join(dir, 'deep'))
+        _status, out, = run_cli(['init'], dir: File.join(dir, 'deep'))
+
+        expect(File).to exist(File.join(dir, 'AGENTS.md'))
+        expect(out).to include(dir)
+      end
+    end
+
+    it 'is idempotent across repeated runs' do
+      in_repo do |dir|
+        commit_all(dir)
+        run_cli(['init'], dir: dir)
+        first = File.binread(File.join(dir, 'AGENTS.md'))
+
+        _status, out, = run_cli(['init'], dir: dir)
+
+        expect(File.binread(File.join(dir, 'AGENTS.md'))).to eq(first)
+        expect(out).to include('already current')
+      end
+    end
+
+    it 'warns rather than staging outside a repository' do
+      Dir.mktmpdir do |dir|
+        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        status, out, = run_cli(['init'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(File).to exist(File.join(dir, '.carrot.md'))
+        expect(out).to include('No git repository here')
+        expect(out).not_to include('Staged')
+      end
+    end
+
+    it 'rejects --file with no path' do
+      in_repo do |dir|
+        commit_all(dir)
+        status, _out, err = run_cli(['init', '--file'], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('--file needs a path')
+      end
+    end
+
+    it 'rejects an empty --file value' do
+      in_repo do |dir|
+        commit_all(dir)
+        status, _out, err = run_cli(['init', '--file='], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('--file needs a path')
+      end
+    end
   end
 
   describe 'save' do

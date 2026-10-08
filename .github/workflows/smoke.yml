@@ -20,6 +20,30 @@ jobs:
       - name: help
         run: bin/carrot-handoff help
 
+      # `init` is the first command anyone runs in a new repo, so it is the one
+      # most worth asserting end to end: note, wiring, and staging together. Run
+      # twice, because idempotency is the property that regresses silently — the
+      # first byte-identical regression shipped a spec that counted lines.
+      - name: init wires the repo, and twice does no harm
+        run: |
+          mkdir -p "$RUNNER_TEMP/started"
+          cd "$RUNNER_TEMP/started"
+          git init --quiet
+          git config user.email ci@example.com
+          git config user.name CI
+          printf '# Fresh project\n' > AGENTS.md
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" init "Start something"
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" status
+          before="$(md5sum AGENTS.md)"
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" init
+          "$GITHUB_WORKSPACE/bin/carrot-handoff" init
+          after="$(md5sum AGENTS.md)"
+          if [ "$before" != "$after" ]; then
+            echo "init is not idempotent: AGENTS.md changed on re-run"
+            exit 1
+          fi
+          git commit --quiet -m "add handoff note"
+
       - name: save and load round trip
         run: |
           mkdir -p "$RUNNER_TEMP/fixture"

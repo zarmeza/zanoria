@@ -13,12 +13,16 @@ module CarrotHandoff
       #{NAME} — carry a task between agent tools
 
       Usage:
-        #{NAME} save [TASK]   write or update #{CarrotHandoff::FILENAME} for the current repo
-        #{NAME} load          print the current handoff note
-        #{NAME} status        one-line summary, for a quick check
-        #{NAME} clear         delete the current handoff note
-        #{NAME} path          print the note's absolute path
-        #{NAME} help          this message
+        #{NAME} init [TASK]    set up #{CarrotHandoff::FILENAME} and wire the agent instructions
+        #{NAME} save [TASK]    write or update #{CarrotHandoff::FILENAME} for the current repo
+        #{NAME} load           print the current handoff note
+        #{NAME} status         one-line summary, for a quick check
+        #{NAME} clear          delete the current handoff note
+        #{NAME} path           print the note's absolute path
+        #{NAME} help           this message
+
+      #{NAME} init accepts repeatable --file PATH (default: AGENTS.md) to wire a
+      different agent instruction file. It never overwrites an existing note.
 
       In an agent session, start with `#{NAME} load` before working on anything
       a previous session left behind.
@@ -31,6 +35,7 @@ module CarrotHandoff
     end
 
     COMMANDS = {
+      'init' => :init, 'setup' => :init,
       'save' => :save, 'new' => :save,
       'load' => :load, 'show' => :load, 'cat' => :load,
       'status' => :status, 'st' => :status,
@@ -65,6 +70,107 @@ module CarrotHandoff
     end
 
     private
+
+    # Set the repo up for handoffs: note, agent wiring, git staging.
+    def init(argv)
+      prepare!
+
+      files, task = split_init_args(argv)
+      result = Init.run(files: files.empty? ? default_files : files, task: task)
+
+      report_init(result)
+      0
+    end
+
+    # Instruction files live at the repo root, resolved there rather than against
+    # the cwd so `init` works from a subdirectory.
+    def default_files
+      Init::DEFAULT_FILES.map { |name| File.join(CarrotHandoff::Repo.root, name) }
+    end
+
+    # Pull `--file` flags out of argv, leaving the positional words as the task.
+    #
+    # Both `--file PATH` and `--file=PATH` are accepted. The repeated form is
+    # what makes a repo with more than one instruction file a single command
+    # rather than a loop the caller has to write.
+    def split_init_args(argv)
+      files = []
+      task = []
+      rest = argv.dup
+
+      until rest.empty?
+        arg = rest.shift
+
+        case arg
+        when '--file', '-f'
+          raise Error, "#{arg} needs a path" if rest.empty?
+
+          files << rest.shift
+        when /\A--file=(.*)\z/
+          raise Error, '--file needs a path' if Regexp.last_match(1).empty?
+
+          files << Regexp.last_match(1)
+        else
+          task << arg
+        end
+      end
+
+      [files.map { |path| File.expand_path(path) }, task.join(' ').strip]
+    end
+
+    # What `init` did, and the one thing left to do.
+    def report_init(result)
+      root = CarrotHandoff::Repo.root
+      @out.puts "Initialized handoff for #{root}"
+      @out.puts "  #{CarrotHandoff::FILENAME.ljust(10)} #{note_summary(result)}"
+
+      result.wired.each { |w| @out.puts "  #{label(w.path, root).ljust(10)} #{wiring_summary(w)}" }
+
+      report_staging(result, root)
+    end
+
+    def note_summary(result)
+      if result.note_created?
+        'created'
+      else
+        'kept (already exists — `save` updates it, `init` will not)'
+      end
+    end
+
+    def wiring_summary(wired)
+      return 'wired (created)' if wired.created?
+      return 'wired' if wired.changed?
+
+      'already current'
+    end
+
+    def label(path, root)
+      prefix = root.end_with?(File::SEPARATOR) ? root : "#{root}#{File::SEPARATOR}"
+      path.start_with?(prefix) ? path.delete_prefix(prefix) : path
+    end
+
+    # Staging is the last step that can still leave the note undiscoverable, so
+    # it is reported rather than assumed. `Git.stage` returns false on failure
+    # and the caller deserves to hear that instead of inferring success from the
+    # absence of an error.
+    def report_staging(result, root)
+      unless CarrotHandoff::Repo.in_repo?
+        @out.puts 'No git repository here — this note will not survive a machine'
+        @out.puts 'swap. Move it into a repo to make it durable.'
+        return
+      end
+
+      staged = result.staged_relative(root)
+      outside = result.outside_relative(root)
+
+      @out.puts "Staged #{staged.join(' ')}" unless staged.empty?
+      @out.puts "Left unstaged (outside the repo): #{outside.join(' ')}" unless outside.empty?
+
+      return if staged.empty?
+
+      @out.puts 'Commit it so the next tool sees it:'
+      @out.puts %(  git commit -m "chore: add #{CarrotHandoff::FILENAME}")
+    end
 
     def save(argv)
       prepare!

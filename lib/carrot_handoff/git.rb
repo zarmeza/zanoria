@@ -66,7 +66,30 @@ module CarrotHandoff
         !capture(['ls-files', '--error-unmatch', path]).nil?
       end
 
+      # Stage paths for commit.
+      #
+      # The one call in this module that changes anything, and it answers a
+      # question the read paths deliberately do not: did it work? A note that
+      # failed to stage prints the same as one that succeeded unless something
+      # says otherwise, and "committed so the next tool sees it" is a promise
+      # worth keeping honest.
+      def stage(paths)
+        return false if paths.empty?
+
+        run('add', '--', *paths)
+      end
+
       private
+
+      # True when git exits zero. Deliberately not `capture`: staging produces no
+      # output worth keeping, and reporting failure as `nil` would be
+      # indistinguishable from the empty-output case the readers rely on.
+      def run(*)
+        _out, status = Open3.capture2(CLEAN_ENV, 'git', *, err: File::NULL)
+        status.success?
+      rescue Errno::ENOENT
+        false
+      end
 
       # Run git and return stripped stdout, or nil on any failure.
       #

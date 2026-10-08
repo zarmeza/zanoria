@@ -108,4 +108,43 @@ RSpec.describe CarrotHandoff::Git do
       expect(described_class).not_to be_tracked('untracked.txt')
     end
   end
+
+  describe '.stage' do
+    it 'stages the given paths' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, 'note.md'), 'x')
+        described_class.reset!
+
+        expect(described_class.stage(['note.md'])).to be(true)
+        expect(git(dir, 'diff', '--cached', '--name-only')).to include('note.md')
+      end
+    end
+
+    it 'returns false when the path does not exist' do
+      in_repo do
+        described_class.reset!
+
+        expect(described_class.stage(['missing.md'])).to be(false)
+      end
+    end
+
+    it 'returns false outside a repository rather than raising' do
+      Dir.mktmpdir do |dir|
+        File.write(File.join(dir, 'note.md'), 'x')
+        Dir.chdir(dir) do
+          described_class.reset!
+          expect(described_class.stage(['note.md'])).to be(false)
+        end
+      end
+    end
+
+    it 'does nothing when given no paths' do
+      in_repo do
+        described_class.reset!
+
+        expect(described_class.stage([])).to be(false)
+      end
+    end
+  end
 end

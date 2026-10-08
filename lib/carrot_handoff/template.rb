@@ -79,6 +79,7 @@ module CarrotHandoff
     # Never raises: an empty state block beats a failed handoff.
     def observed_state
       snapshot = {
+        repo: Git.root,
         branch: Git.branch,
         head: Git.head,
         dirty: Git.dirty_files || [],
@@ -89,7 +90,14 @@ module CarrotHandoff
       lines.concat(worktree_lines(snapshot[:dirty], identified: identified?(snapshot)))
       lines.concat(commit_lines(snapshot[:commits]))
 
-      lines.empty? ? 'No git repository detected.' : lines.join("\n")
+      return lines.join("\n") unless lines.empty?
+
+      # A repository with no commits is the same shape as no repository at all:
+      # `branch` and `head` are both nil because nothing has been committed yet.
+      # `init` is the first command anyone runs in a fresh repo, so this is the
+      # line a new project reads moments after being told it was initialized.
+      # Telling that user there is no repository reads as a bug in the tool.
+      snapshot[:repo] ? 'Repository has no commits yet.' : 'No git repository detected.'
     rescue StandardError => e
       "Could not inspect git state: #{e.class}: #{e.message}"
     end

@@ -160,10 +160,31 @@ RSpec.describe CarrotHandoff::Template do
 
     it 'says so plainly when git reports nothing at all' do
       allow(CarrotHandoff::Git).to receive_messages(
-        branch: nil, head: nil, dirty_files: [], recent_commits: []
+        root: nil, branch: nil, head: nil, dirty_files: [], recent_commits: []
       )
 
       expect(described_class.observed_state).to eq('No git repository detected.')
+    end
+
+    # `branch` and `head` are nil in a repo with no commits for the same reason
+    # they are nil outside one, so the two cases are indistinguishable from those
+    # readers alone. `root` is what tells them apart, and getting it wrong makes
+    # `init` claim there is no repository in the fresh repo it just set up.
+    it 'distinguishes a repository with no commits from no repository' do
+      allow(CarrotHandoff::Git).to receive_messages(
+        root: '/srv/repo', branch: nil, head: nil, dirty_files: [], recent_commits: []
+      )
+
+      expect(described_class.observed_state).to eq('Repository has no commits yet.')
+    end
+
+    it 'still lists uncommitted files in a repository with no commits' do
+      allow(CarrotHandoff::Git).to receive_messages(
+        root: '/srv/repo', branch: nil, head: nil, recent_commits: []
+      )
+      allow(CarrotHandoff::Git).to receive(:dirty_files).and_return(['?? new.rb'])
+
+      expect(described_class.observed_state).to include('- Uncommitted: 1 file(s)')
     end
 
     it 'survives a git binary that is not installed' do
