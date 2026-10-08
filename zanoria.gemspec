@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative 'lib/carrot_handoff/version'
+require_relative 'lib/zanoria/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'carrot-handoff'
-  spec.version       = CarrotHandoff::VERSION
+  spec.name          = 'zanoria'
+  spec.version       = Zanoria::VERSION
   spec.authors       = ['Eleazar Meza']
   spec.email         = ['meza.eleazar@gmail.com']
 
@@ -15,14 +15,14 @@ Gem::Specification.new do |spec|
     failed, and the single next action. Plain markdown, no agent integration
     required.
   DESC
-  spec.homepage      = 'https://github.com/zarmeza/carrot-handoff'
+  spec.homepage      = 'https://github.com/zarmeza/zanoria'
   spec.license       = 'MIT'
   spec.required_ruby_version = '>= 3.3'
 
   spec.metadata['rubygems_mfa_required'] = 'true'
 
-  spec.files = Dir['bin/carrot-handoff', 'lib/**/*.rb', 'README.md', 'LICENSE']
+  spec.files = Dir['bin/zanoria', 'lib/**/*.rb', 'README.md', 'LICENSE']
   spec.bindir = 'bin'
-  spec.executables = ['carrot-handoff']
+  spec.executables = ['zanoria']
   spec.require_paths = ['lib']
 end

@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-module CarrotHandoff
+module Zanoria
   # Command line entry point.
   #
   # Commands are intentionally few: save, load, status, clear, path. Everything
   # runs on plain text on disk, so no agent integration is required to read or
   # write a note.
   class CLI
-    NAME = 'carrot-handoff'
+    NAME = 'zanoria'
 
     USAGE = <<~TEXT.freeze
       #{NAME} — carry a task between agent tools
 
       Usage:
-        #{NAME} init [TASK]    set up #{CarrotHandoff::FILENAME} and wire the agent instructions
-        #{NAME} save [TASK]    write or update #{CarrotHandoff::FILENAME} for the current repo
+        #{NAME} init [TASK]    set up #{Zanoria::FILENAME} and wire the agent instructions
+        #{NAME} save [TASK]    write or update #{Zanoria::FILENAME} for the current repo
         #{NAME} load           print the current handoff note
         #{NAME} status         one-line summary, for a quick check
         #{NAME} clear          delete the current handoff note
@@ -57,7 +57,7 @@ module CarrotHandoff
       # `send`, not `public_send`: the command implementations are private, and
       # the only path here is via COMMANDS, which is a closed set.
       send(command, argv)
-    rescue CarrotHandoff::Error => e
+    rescue Zanoria::Error => e
       @err.puts "#{NAME}: #{e.message}"
       1
     end
@@ -85,7 +85,7 @@ module CarrotHandoff
     # Instruction files live at the repo root, resolved there rather than against
     # the cwd so `init` works from a subdirectory.
     def default_files
-      Init::DEFAULT_FILES.map { |name| File.join(CarrotHandoff::Repo.root, name) }
+      Init::DEFAULT_FILES.map { |name| File.join(Zanoria::Repo.root, name) }
     end
 
     # Pull `--file` flags out of argv, leaving the positional words as the task.
@@ -120,9 +120,9 @@ module CarrotHandoff
 
     # What `init` did, and the one thing left to do.
     def report_init(result)
-      root = CarrotHandoff::Repo.root
+      root = Zanoria::Repo.root
       @out.puts "Initialized handoff for #{root}"
-      @out.puts "  #{CarrotHandoff::FILENAME.ljust(10)} #{note_summary(result)}"
+      @out.puts "  #{Zanoria::FILENAME.ljust(10)} #{note_summary(result)}"
 
       result.wired.each { |w| @out.puts "  #{label(w.path, root).ljust(10)} #{wiring_summary(w)}" }
 
@@ -154,7 +154,7 @@ module CarrotHandoff
     # and the caller deserves to hear that instead of inferring success from the
     # absence of an error.
     def report_staging(result, root)
-      unless CarrotHandoff::Repo.in_repo?
+      unless Zanoria::Repo.in_repo?
         @out.puts 'No git repository here — this note will not survive a machine'
         @out.puts 'swap. Move it into a repo to make it durable.'
         return
@@ -169,13 +169,13 @@ module CarrotHandoff
       return if staged.empty?
 
       @out.puts 'Commit it so the next tool sees it:'
-      @out.puts %(  git commit -m "chore: add #{CarrotHandoff::FILENAME}")
+      @out.puts %(  git commit -m "chore: add #{Zanoria::FILENAME}")
     end
 
     def save(argv)
       prepare!
 
-      path = CarrotHandoff::Repo.path
+      path = Zanoria::Repo.path
       existing = Store.read_or_empty(path)
       task = argv.join(' ').strip
 
@@ -188,10 +188,10 @@ module CarrotHandoff
       record = Record.new(sections, path: path, headings: existing.headings)
       Store.write(path, Template.render(record))
 
-      if !CarrotHandoff::Repo.in_repo?
+      if !Zanoria::Repo.in_repo?
         @out.puts "Wrote #{path} (no git repository here — this note will not"
         @out.puts 'survive a machine swap. Move it into a repo to make it durable.)'
-      elsif Git.tracked?(CarrotHandoff::FILENAME)
+      elsif Git.tracked?(Zanoria::FILENAME)
         @out.puts "Wrote #{path} (tracked by git — remember to commit it)"
       else
         @out.puts "Wrote #{path} (untracked — commit it so the next tool sees it)"
@@ -203,29 +203,29 @@ module CarrotHandoff
     def load(_argv = [])
       prepare!
 
-      unless CarrotHandoff::Repo.exists?
-        @err.puts "#{NAME}: no #{CarrotHandoff::FILENAME} in #{CarrotHandoff::Repo.root}"
+      unless Zanoria::Repo.exists?
+        @err.puts "#{NAME}: no #{Zanoria::FILENAME} in #{Zanoria::Repo.root}"
         @err.puts 'Nothing was handed off yet.'
         return 1
       end
 
-      @out.puts File.read(CarrotHandoff::Repo.path)
+      @out.puts File.read(Zanoria::Repo.path)
       0
     end
 
     def status(_argv = [])
       prepare!
 
-      unless CarrotHandoff::Repo.exists?
+      unless Zanoria::Repo.exists?
         @out.puts 'no handoff note'
         return 1
       end
 
-      record = CarrotHandoff::Repo.current
+      record = Zanoria::Repo.current
       task = record.task.strip.lines.first.to_s.strip
 
       @out.puts "task:     #{task.empty? ? '_(not written)_' : task}"
-      @out.puts "file:     #{CarrotHandoff::Repo.path}"
+      @out.puts "file:     #{Zanoria::Repo.path}"
       @out.puts "sections: #{written_summary(record)}"
       @out.puts "extra:    #{extra_summary(record)}" unless record.extra_sections.empty?
 
@@ -249,7 +249,7 @@ module CarrotHandoff
     def clear(_argv = [])
       prepare!
 
-      path = CarrotHandoff::Repo.path
+      path = Zanoria::Repo.path
       unless File.exist?(path)
         @out.puts "nothing to clear (#{path} does not exist)"
         return 0
@@ -262,7 +262,7 @@ module CarrotHandoff
 
     def path(_argv = [])
       prepare!
-      @out.puts CarrotHandoff::Repo.path
+      @out.puts Zanoria::Repo.path
       0
     end
 

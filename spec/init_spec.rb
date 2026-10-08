@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require_relative '../lib/carrot_handoff'
+require_relative '../lib/zanoria'
 require_relative 'spec_helper'
 
-RSpec.describe CarrotHandoff::Init do
+RSpec.describe Zanoria::Init do
   # `Init.run` takes absolute paths, the way the CLI resolves them.
   def run_init(task: nil, files: nil)
-    files ||= [File.join(CarrotHandoff::Repo.root, 'AGENTS.md')]
+    files ||= [File.join(Zanoria::Repo.root, 'AGENTS.md')]
     described_class.run(files: files, task: task)
   end
 
@@ -16,7 +16,7 @@ RSpec.describe CarrotHandoff::Init do
         result = run_init(task: 'Wire up handoffs')
 
         expect(result).to be_note_created
-        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+        record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
         expect(record.task).to eq('Wire up handoffs')
       end
     end
@@ -24,10 +24,10 @@ RSpec.describe CarrotHandoff::Init do
     it 'leaves every human section a prompt when no task is given' do
       in_repo do |dir|
         run_init
-        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+        record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
 
-        human = CarrotHandoff::Record::SECTIONS.keys - [:state]
-        expect(human.map { |key| record[key] }).to all(match(CarrotHandoff::Template::PROMPT_RE))
+        human = Zanoria::Record::SECTIONS.keys - [:state]
+        expect(human.map { |key| record[key] }).to all(match(Zanoria::Template::PROMPT_RE))
 
         # `State` is the exception and is expected to hold real content: it is
         # derived from git, not authored.
@@ -47,7 +47,7 @@ RSpec.describe CarrotHandoff::Init do
 
         expect(result).not_to be_note_created
         expect(File.binread(path)).to eq(before)
-        expect(CarrotHandoff::Record.load(path).attempts).to eq('Tried the thing.')
+        expect(Zanoria::Record.load(path).attempts).to eq('Tried the thing.')
       end
     end
   end
@@ -89,7 +89,7 @@ RSpec.describe CarrotHandoff::Init do
 
     it 'stages nothing outside a repository' do
       Dir.mktmpdir do |dir|
-        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        allow(Zanoria::Git).to receive(:root).and_return(nil)
         Dir.chdir(dir) { run_init }
 
         expect(Dir.children(dir)).to contain_exactly('.carrot.md', 'AGENTS.md')

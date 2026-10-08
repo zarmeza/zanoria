@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-# Handoff keeps a short, committed note about the task in progress so that a
+# Zanoria keeps a short, committed note about the task in progress so that a
 # different agent tool can pick the work up without the conversation.
 #
 # The format is deliberately plain text. Any tool can read a markdown file, so
 # nothing here depends on the agent that wrote it.
-module CarrotHandoff
+module Zanoria
   FILENAME = '.carrot.md'
 
   # Convenience wrappers over the repo a note belongs to.
@@ -30,7 +30,7 @@ module CarrotHandoff
     end
 
     def path
-      File.join(root, CarrotHandoff::FILENAME)
+      File.join(root, Zanoria::FILENAME)
     end
 
     def exists?
@@ -48,11 +48,11 @@ module CarrotHandoff
   class Error < StandardError; end
 end
 
-require_relative 'carrot_handoff/version'
-require_relative 'carrot_handoff/git'
-require_relative 'carrot_handoff/record'
-require_relative 'carrot_handoff/store'
-require_relative 'carrot_handoff/template'
-require_relative 'carrot_handoff/wiring'
-require_relative 'carrot_handoff/init'
-require_relative 'carrot_handoff/cli'
+require_relative 'zanoria/version'
+require_relative 'zanoria/git'
+require_relative 'zanoria/record'
+require_relative 'zanoria/store'
+require_relative 'zanoria/template'
+require_relative 'zanoria/wiring'
+require_relative 'zanoria/init'
+require_relative 'zanoria/cli'

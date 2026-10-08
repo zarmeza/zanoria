@@ -17,16 +17,16 @@ task default: %i[spec rubocop]
 # supposed to be what tells you.
 desc 'Rewrite the README block from Wiring::BLOCK'
 task :'docs:sync' do
-  require_relative 'lib/carrot_handoff'
+  require_relative 'lib/zanoria'
 
   path = 'README.md'
   before = File.read(path)
-  after = CarrotHandoff::Wiring.embed(before)
+  after = Zanoria::Wiring.embed(before)
 
   if before == after
     puts "#{path} already in sync"
   else
     File.write(path, after)
-    puts "rewrote the #{CarrotHandoff::Wiring::DOC_BEGIN} region of #{path}"
+    puts "rewrote the #{Zanoria::Wiring::DOC_BEGIN} region of #{path}"
   end
 end

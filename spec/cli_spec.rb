@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require_relative '../lib/carrot_handoff'
+require_relative '../lib/zanoria'
 require_relative 'spec_helper'
 
-RSpec.describe CarrotHandoff::CLI do
+RSpec.describe Zanoria::CLI do
   # Run the CLI against an explicit stream pair, with the process cwd set to the
   # fixture repo, and return [status, stdout, stderr].
   def run_cli(argv, dir:, out: StringIO.new, err: StringIO.new)
     original = Dir.pwd
     Dir.chdir(dir)
-    CarrotHandoff::Git.reset!
+    Zanoria::Git.reset!
     status = described_class.new(out: out, err: err).run(argv)
     [status, out.string, err.string]
   ensure
     Dir.chdir(original)
-    CarrotHandoff::Git.reset!
+    Zanoria::Git.reset!
   end
 
   describe 'help' do
@@ -64,7 +64,7 @@ RSpec.describe CarrotHandoff::CLI do
         commit_all(dir)
         run_cli(%w[init Upgrade omniauth-facebook], dir: dir)
 
-        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+        record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
         expect(record.task).to eq('Upgrade omniauth-facebook')
       end
     end
@@ -76,7 +76,7 @@ RSpec.describe CarrotHandoff::CLI do
         run_cli(['save', 'Second task'], dir: dir)
 
         _status, out, = run_cli(['init', 'Third task'], dir: dir)
-        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+        record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
 
         expect(record.task).to eq('Second task')
         expect(out).to include('kept')
@@ -131,7 +131,7 @@ RSpec.describe CarrotHandoff::CLI do
 
     it 'warns rather than staging outside a repository' do
       Dir.mktmpdir do |dir|
-        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        allow(Zanoria::Git).to receive(:root).and_return(nil)
         status, out, = run_cli(['init'], dir: dir)
 
         expect(status).to eq(0)
@@ -171,7 +171,7 @@ RSpec.describe CarrotHandoff::CLI do
         expect(status).to eq(0)
         expect(out).to include('Wrote')
 
-        record = CarrotHandoff::Record.load(File.join(dir, '.carrot.md'))
+        record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
         expect(record.task).to eq('Upgrade Rails')
       end
     end
@@ -205,7 +205,7 @@ RSpec.describe CarrotHandoff::CLI do
         File.write(path, File.read(path).sub(/^_TODO: .*_$/, 'Chose X over Y:'))
 
         run_cli(['save', 'Better task'], dir: dir)
-        record = CarrotHandoff::Record.load(path)
+        record = Zanoria::Record.load(path)
 
         expect(record.task).to eq('Better task')
         expect(record.decisions).to eq('Chose X over Y:')
@@ -228,7 +228,7 @@ RSpec.describe CarrotHandoff::CLI do
 
     it 'writes to the current directory when there is no repository' do
       Dir.mktmpdir do |dir|
-        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        allow(Zanoria::Git).to receive(:root).and_return(nil)
         status, out, = run_cli(['save', 'A task'], dir: dir)
 
         expect(status).to eq(0)
@@ -239,7 +239,7 @@ RSpec.describe CarrotHandoff::CLI do
 
     it 'round trips a note written outside a repository' do
       Dir.mktmpdir do |dir|
-        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        allow(Zanoria::Git).to receive(:root).and_return(nil)
         run_cli(['save', 'A task'], dir: dir)
         status, out, = run_cli(['load'], dir: dir)
 
@@ -250,7 +250,7 @@ RSpec.describe CarrotHandoff::CLI do
 
     it 'says the note will not survive a machine swap' do
       Dir.mktmpdir do |dir|
-        allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+        allow(Zanoria::Git).to receive(:root).and_return(nil)
         _status, out, = run_cli(['save', 'A task'], dir: dir)
 
         expect(out).to include('will not')

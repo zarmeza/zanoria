@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative '../lib/carrot_handoff'
+require_relative '../lib/zanoria'
 require_relative 'spec_helper'
 
-RSpec.describe CarrotHandoff::Wiring do
+RSpec.describe Zanoria::Wiring do
   # Writes `contents` to a file in the repo and returns its path.
   def agent_file(dir, contents = "# Project\n\nExisting prose.\n")
     path = File.join(dir, 'AGENTS.md')
@@ -119,7 +119,7 @@ RSpec.describe CarrotHandoff::Wiring do
         FileUtils.mkdir_p(File.join(dir, 'AGENTS.md'))
 
         expect { described_class.apply(File.join(dir, 'AGENTS.md')) }
-          .to raise_error(CarrotHandoff::Error, /could not write/)
+          .to raise_error(Zanoria::Error, /could not write/)
       end
     end
   end
@@ -172,8 +172,8 @@ RSpec.describe CarrotHandoff::Wiring do
     end
 
     it 'tells an agent to load before working and save before finishing' do
-      expect(described_class::BLOCK).to include('carrot-handoff load')
-      expect(described_class::BLOCK).to include('carrot-handoff save')
+      expect(described_class::BLOCK).to include('zanoria load')
+      expect(described_class::BLOCK).to include('zanoria save')
     end
 
     # From this repository's own note: an invented `##` heading survives a save

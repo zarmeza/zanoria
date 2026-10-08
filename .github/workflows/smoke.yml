@@ -18,7 +18,7 @@ jobs:
 
       # Exercise the binary the way a user would, in a throwaway repo.
       - name: help
-        run: bin/carrot-handoff help
+        run: bin/zanoria help
 
       # `init` is the first command anyone runs in a new repo, so it is the one
       # most worth asserting end to end: note, wiring, and staging together. Run
@@ -32,11 +32,11 @@ jobs:
           git config user.email ci@example.com
           git config user.name CI
           printf '# Fresh project\n' > AGENTS.md
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" init "Start something"
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" status
+          "$GITHUB_WORKSPACE/bin/zanoria" init "Start something"
+          "$GITHUB_WORKSPACE/bin/zanoria" status
           before="$(md5sum AGENTS.md)"
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" init
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" init
+          "$GITHUB_WORKSPACE/bin/zanoria" init
+          "$GITHUB_WORKSPACE/bin/zanoria" init
           after="$(md5sum AGENTS.md)"
           if [ "$before" != "$after" ]; then
             echo "init is not idempotent: AGENTS.md changed on re-run"
@@ -54,9 +54,9 @@ jobs:
           echo hello > file.txt
           git add -A
           git commit --quiet -m "first"
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" save "CI smoke test"
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" status
-          "$GITHUB_WORKSPACE/bin/carrot-handoff" load
+          "$GITHUB_WORKSPACE/bin/zanoria" save "CI smoke test"
+          "$GITHUB_WORKSPACE/bin/zanoria" status
+          "$GITHUB_WORKSPACE/bin/zanoria" load
 
       # Outside a repository `save` succeeds and warns that the note will not
       # survive a machine swap. It has warned-and-exited-0 since adeaf6d, which
@@ -65,7 +65,7 @@ jobs:
       - name: warns outside a repository instead of failing
         run: |
           cd "$RUNNER_TEMP"
-          output="$("$GITHUB_WORKSPACE/bin/carrot-handoff" save "x")"
+          output="$("$GITHUB_WORKSPACE/bin/zanoria" save "x")"
           echo "$output"
           case "$output" in
             *"no git repository here"*) ;;

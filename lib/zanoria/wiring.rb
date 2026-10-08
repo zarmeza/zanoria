@@ -2,7 +2,7 @@
 
 require 'fileutils'
 
-module CarrotHandoff
+module Zanoria
   # Wiring an agent tool to the note.
   #
   # The note is only a handoff if something tells the next agent to read it, and
@@ -27,14 +27,14 @@ module CarrotHandoff
       #{BEGIN_MARKER}
       ## Handoff notes
 
-      This repository uses carrot-handoff to carry a task between agent tools.
+      This repository uses zanoria to carry a task between agent tools.
       The note is `.carrot.md`, committed to this repository.
 
-      Before starting work here, run `carrot-handoff load`. If a note exists it
+      Before starting work here, run `zanoria load`. If a note exists it
       describes work already in progress: read it, follow its `Next action`, and
       do not re-derive what its `Decisions` section already settled.
 
-      Before you finish, run `carrot-handoff save "<one-line task>"` and then
+      Before you finish, run `zanoria save "<one-line task>"` and then
       fill in `Tried and failed` and `Decisions` by hand. The tool can record the
       git state; it cannot know what you tried.
 

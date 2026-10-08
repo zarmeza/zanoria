@@ -1,4 +1,4 @@
-# CarrotHandoff Agent Guide
+# Zanoria Agent Guide
 
 Guidance for AI coding agents working in this repository. Two sections matter:
 **Conventions** and **The handoff loop**.
@@ -12,7 +12,7 @@ different agent tool can pick up an in-progress task without the conversation.
 Plain markdown output on purpose — no agent integration required to read it.
 
 - Ruby 4.0.7, zero runtime dependencies (`open3` and `json` are stdlib).
-- CLI at `bin/carrot-handoff`, implementation in `lib/carrot_handoff/`.
+- CLI at `bin/zanoria`, implementation in `lib/zanoria/`.
 
 ---
 
@@ -23,7 +23,7 @@ Plain markdown output on purpose — no agent integration required to read it.
 Before starting work:
 
 ```console
-$ bin/carrot-handoff load
+$ bin/zanoria load
 ```
 
 If a note exists, it describes work already in progress. Follow its
@@ -32,7 +32,7 @@ If a note exists, it describes work already in progress. Follow its
 Before finishing:
 
 ```console
-$ bin/carrot-handoff save "<one-line task>"
+$ bin/zanoria save "<one-line task>"
 ```
 
 Then fill in, by hand, the sections only a human or agent can know:
@@ -57,12 +57,12 @@ and the whole thread if it is not.
 
 | Command | Does |
 |---|---|
-| `bin/carrot-handoff init [TASK]` | Set a repo up: note, agent wiring, staging. Never overwrites a note. |
-| `bin/carrot-handoff save [TASK]` | Write or update the note. Keeps sections. |
-| `bin/carrot-handoff load` | Print the note. |
-| `bin/carrot-handoff status` | Task plus count of five human sections set. |
-| `bin/carrot-handoff clear` | Delete the note. |
-| `bin/carrot-handoff path` | Absolute path to the note. |
+| `bin/zanoria init [TASK]` | Set a repo up: note, agent wiring, staging. Never overwrites a note. |
+| `bin/zanoria save [TASK]` | Write or update the note. Keeps sections. |
+| `bin/zanoria load` | Print the note. |
+| `bin/zanoria status` | Task plus count of five human sections set. |
+| `bin/zanoria clear` | Delete the note. |
+| `bin/zanoria path` | Absolute path to the note. |
 
 Outside a git repository the note goes in the current directory and both
 `init` and `save` warn that it will not survive a machine swap. `Repo.root` falls
@@ -78,14 +78,14 @@ $ bundle install                       # once
 $ bundle exec rake                    # specs + rubocop (default task)
 $ bundle exec rspec                   # run the suite; it reports its own count
 $ bundle exec rubocop                 # lint
-$ ruby -Ilib -e 'require "carrot_handoff"'   # smoke check
-$ gem build carrot-handoff.gemspec && gem install ./carrot-handoff-*.gem
+$ ruby -Ilib -e 'require "zanoria"'   # smoke check
+$ gem build zanoria.gemspec && gem install ./zanoria-*.gem
 $ rake docs:sync                      # README block from Wiring::BLOCK
 ```
 
-The gem is installed locally, so `carrot-handoff` works from any directory. It
+The gem is installed locally, so `zanoria` works from any directory. It
 is a snapshot, not a link: after changing `lib/`, rebuild and reinstall, or
-invoke `ruby bin/carrot-handoff` from this checkout to test the working copy.
+invoke `ruby bin/zanoria` from this checkout to test the working copy.
 
 `bundle exec rake` is the gate: both specs and RuboCop must be clean. Neither
 this file nor the README states an example count; they drifted apart twice
@@ -96,15 +96,15 @@ already, and the suite reports the number.
 ## 5. Layout
 
 ```text
-bin/carrot-handoff             entry point
-lib/carrot_handoff.rb          FILENAME, Repo (path lookups), Error
-lib/carrot_handoff/git.rb      git binary wrapper; reads return nil, never raise
-lib/carrot_handoff/record.rb   markdown in, sections out
-lib/carrot_handoff/store.rb    file IO
-lib/carrot_handoff/template.rb note rendering, git state assembly
-lib/carrot_handoff/wiring.rb   the AGENTS.md block, and its markers
-lib/carrot_handoff/init.rb     one-time setup: note, wiring, staging
-lib/carrot_handoff/cli.rb      argument dispatch
+bin/zanoria             entry point
+lib/zanoria.rb          FILENAME, Repo (path lookups), Error
+lib/zanoria/git.rb      git binary wrapper; reads return nil, never raise
+lib/zanoria/record.rb   markdown in, sections out
+lib/zanoria/store.rb    file IO
+lib/zanoria/template.rb note rendering, git state assembly
+lib/zanoria/wiring.rb   the AGENTS.md block, and its markers
+lib/zanoria/init.rb     one-time setup: note, wiring, staging
+lib/zanoria/cli.rb      argument dispatch
 spec/                          specs
 .carrot.md                     current task note (committed)
 ```
@@ -114,10 +114,10 @@ spec/                          specs
 ## 6. Conventions
 
 **Git access is read-only and must never raise — with one exception.**
-`CarrotHandoff::Git` shells out via `Open3.capture2` with `err: File::NULL` and
+`Zanoria::Git` shells out via `Open3.capture2` with `err: File::NULL` and
 the readers return `nil` on any failure — non-zero exit, empty output, missing
 binary. Callers handle `nil`, so never assume a git call succeeded.
-`CarrotHandoff::Template.observed_state` additionally rescues `StandardError`,
+`Zanoria::Template.observed_state` additionally rescues `StandardError`,
 because a failed note is worse than a partial one.
 
 `Git.stage` is the exception and is the only call in the module that changes
@@ -162,21 +162,21 @@ than a preview.
 directory. `Init.inside_repo?` exists because `git add` on a path outside the
 repository fails the whole run.
 
-**Memoize carefully.** `CarrotHandoff::Git.root` caches in `@root`; call
-`CarrotHandoff::Git.reset!` after changing directory or the cache goes stale.
+**Memoize carefully.** `Zanoria::Git.root` caches in `@root`; call
+`Zanoria::Git.reset!` after changing directory or the cache goes stale.
 Specs do this via the `in_repo` helper, which `chdir`s into a tmpdir git repo.
 
-**Parse tolerantly.** `CarrotHandoff::Record.parse` returns empty strings for
+**Parse tolerantly.** `Zanoria::Record.parse` returns empty strings for
 missing sections and keeps unrecognized headings under an `other_` key so a
 hand-written section survives a rewrite. Never let a malformed note raise.
 
 **Prompts are not content.** A section still holding `_TODO:` counts as empty.
-`CarrotHandoff::Template.body_for` regenerates prompts on every render, which is
+`Zanoria::Template.body_for` regenerates prompts on every render, which is
 what makes repeated `save` calls idempotent. If you add a section, add it to
-`CarrotHandoff::Record::SECTIONS` and to `CarrotHandoff::Template::PROMPTS`.
+`Zanoria::Record::SECTIONS` and to `Zanoria::Template::PROMPTS`.
 
 **Specs build real repositories.** Use the `in_repo` helper and `commit_all`
-from `spec/spec_helper.rb`. Do not stub `CarrotHandoff::Git` — the point is to
+from `spec/spec_helper.rb`. Do not stub `Zanoria::Git` — the point is to
 exercise the actual shell-outs. The one exception is `template_spec.rb`, which
 stubs individual readers to exercise a render path directly; stub `root` too
 when you do, since `State` now distinguishes "no commits yet" from "no
@@ -185,7 +185,7 @@ repository" using it.
 **RuboCop is clean and stays that way.** Run it before committing. Three
 deliberate relaxations live in `.rubocop.yml`: `Metrics/AbcSize` raised to 27
 (three linear methods sit just over the default), `Metrics/ClassLength` at 200 (`CLI` counts ~178 against it — put new
-orchestration in its own module under `lib/carrot_handoff/`, the way `Init`
+orchestration in its own module under `lib/zanoria/`, the way `Init`
 is), and `Style/Documentation` off. Do not
 add new exclusions without a comment explaining why.
 
@@ -193,9 +193,9 @@ add new exclusions without a comment explaining why.
 
 ## 7. Adding a section
 
-1. Add the key and heading to `CarrotHandoff::Record::SECTIONS`.
-2. Add a prompt to `CarrotHandoff::Template::PROMPTS` unless machine-derived.
-3. Handle it in `CarrotHandoff::Template.body_for` if it needs custom fill.
+1. Add the key and heading to `Zanoria::Record::SECTIONS`.
+2. Add a prompt to `Zanoria::Template::PROMPTS` unless machine-derived.
+3. Handle it in `Zanoria::Template.body_for` if it needs custom fill.
 4. Add parse coverage in `spec/record_spec.rb`.
 
 Order in `SECTIONS` is both display and write order.

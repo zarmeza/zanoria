@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module CarrotHandoff
+module Zanoria
   # One-time setup for a repository: the note, the agent wiring, and the git
   # tracking that makes both of them durable.
   #
@@ -71,7 +71,7 @@ module CarrotHandoff
     # re-running `init` with a fresh task line cannot quietly reword a note that
     # an agent has since filled in.
     def create_note(task)
-      path = CarrotHandoff::Repo.path
+      path = Zanoria::Repo.path
       return [path, false] if File.exist?(path)
 
       record = Record.new({ task: task.to_s }, path: path)
@@ -79,7 +79,7 @@ module CarrotHandoff
     end
 
     def split_by_repo(paths)
-      return [paths, []] unless CarrotHandoff::Repo.in_repo?
+      return [paths, []] unless Zanoria::Repo.in_repo?
 
       paths.partition { |path| inside_repo?(path) }
     end
@@ -92,7 +92,7 @@ module CarrotHandoff
     # with it, which is a poor outcome for an instruction file the person
     # deliberately pointed outside the tree.
     def inside_repo?(path)
-      root = File.realpath(CarrotHandoff::Repo.root)
+      root = File.realpath(Zanoria::Repo.root)
       dir = File.realpath(File.dirname(path))
       prefix = root.end_with?(File::SEPARATOR) ? root : "#{root}#{File::SEPARATOR}"
 

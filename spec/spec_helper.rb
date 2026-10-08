@@ -3,13 +3,13 @@
 require 'tmpdir'
 require 'fileutils'
 
-require_relative '../lib/carrot_handoff'
+require_relative '../lib/zanoria'
 
 # Helpers for building throwaway git repositories, so specs exercise real `git`
 # invocations instead of a stubbed interface.
 module GitFixture
   # Run a block inside a fresh git repo, with the process cwd moved into it.
-  # Yields the repo path. `CarrotHandoff::Git` shells out with the inherited cwd, so
+  # Yields the repo path. `Zanoria::Git` shells out with the inherited cwd, so
   # chdir is what makes the fixture real rather than mocked.
   def in_repo
     Dir.mktmpdir('carrot-spec') do |dir|
@@ -19,11 +19,11 @@ module GitFixture
 
       original = Dir.pwd
       Dir.chdir(dir)
-      CarrotHandoff::Git.reset!
+      Zanoria::Git.reset!
       yield dir
     ensure
       Dir.chdir(original)
-      CarrotHandoff::Git.reset!
+      Zanoria::Git.reset!
     end
   end
 

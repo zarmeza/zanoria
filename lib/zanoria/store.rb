@@ -2,7 +2,7 @@
 
 require 'fileutils'
 
-module CarrotHandoff
+module Zanoria
   # Reading and writing the note on disk.
   module Store
     module_function

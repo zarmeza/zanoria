@@ -3,10 +3,10 @@
 require 'tmpdir'
 require 'open3'
 
-require_relative '../lib/carrot_handoff'
+require_relative '../lib/zanoria'
 require_relative 'spec_helper'
 
-RSpec.describe CarrotHandoff::Git do
+RSpec.describe Zanoria::Git do
   it 'reports the repo root' do
     in_repo do |dir|
       expect(described_class.root).to eq(File.realpath(dir))
@@ -24,18 +24,18 @@ RSpec.describe CarrotHandoff::Git do
 
   it 'falls back to the current directory when there is no repository' do
     Dir.mktmpdir do |dir|
-      allow(CarrotHandoff::Git).to receive(:root).and_return(nil)
+      allow(Zanoria::Git).to receive(:root).and_return(nil)
 
       Dir.chdir(dir) do
-        expect(CarrotHandoff::Repo.root).to eq(dir)
-        expect(CarrotHandoff::Repo.in_repo?).to be(false)
+        expect(Zanoria::Repo.root).to eq(dir)
+        expect(Zanoria::Repo.in_repo?).to be(false)
       end
     end
   end
 
   it 'reports in_repo? true inside a repository' do
     in_repo do
-      expect(CarrotHandoff::Repo.in_repo?).to be(true)
+      expect(Zanoria::Repo.in_repo?).to be(true)
     end
   end
 
