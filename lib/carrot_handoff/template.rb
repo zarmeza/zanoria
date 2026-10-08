@@ -24,9 +24,33 @@ module CarrotHandoff
     module_function
 
     def render(record, prompt: true)
-      Record::SECTIONS.map do |key, heading|
+      canonical = Record::SECTIONS.map do |key, heading|
         "## #{heading}\n\n#{body_for(record, key, prompt: prompt)}\n"
       end.join("\n")
+
+      extras = extra_sections(record)
+      extras.empty? ? canonical : "#{canonical}\n#{extras.join("\n")}"
+    end
+
+    # Unrecognized headings the note's author added, in the order they appeared.
+    #
+    # These have to be written back out. `save` rewrites the whole file, so a
+    # section that is parsed but never rendered is not merely hidden -- it is
+    # deleted, taking the hand-written content with it. Preserving them here is
+    # the whole reason `Record.parse` keeps them under an `other_` key.
+    #
+    # Rendered after the canonical sections so their fixed order is undisturbed.
+    def extra_sections(record)
+      record.extra_sections.map do |key|
+        "## #{record.heading_for(key) || deslug(key)}\n\n#{record[key].strip}\n"
+      end
+    end
+
+    # Fallback for a Record assembled in code rather than parsed from a file,
+    # where there is no original heading to recover. The CLI always goes through
+    # `parse`, so this only serves direct callers.
+    def deslug(key)
+      key.to_s.sub(/\Aother_/, '').tr('_', ' ')
     end
 
     def body_for(record, key, prompt:)

@@ -76,7 +76,10 @@ module CarrotHandoff
       sections = existing.sections.dup
       sections[:task] = task unless task.empty?
 
-      record = Record.new(sections, path: path)
+      # `headings:` has to be carried across, not just `sections`. The record is
+      # rebuilt here to swap in the new task, and without this the author's own
+      # heading wording for any extra section is gone by the time it renders.
+      record = Record.new(sections, path: path, headings: existing.headings)
       Store.write(path, Template.render(record))
 
       if !CarrotHandoff::Repo.in_repo?

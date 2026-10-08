@@ -127,7 +127,7 @@ This is also AGPL-3.0-free, which matters if it ever ends up somewhere real.
 ```console
 $ bundle install
 $ bundle exec rake        # specs + rubocop
-$ bundle exec rspec       # 50 examples
+$ bundle exec rspec       # 55 examples
 $ bundle exec rubocop
 ```
 
@@ -160,7 +160,7 @@ lib/carrot_handoff/record.rb   markdown in, sections out
 lib/carrot_handoff/store.rb    file IO
 lib/carrot_handoff/template.rb note rendering, git state assembly
 lib/carrot_handoff/cli.rb      argument dispatch
-spec/                          45 examples
+spec/                          55 examples
 .carrot.md                     this repo's own handoff note
 AGENTS.md                      conventions for agents working here
 ```

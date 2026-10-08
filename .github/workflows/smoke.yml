@@ -34,10 +34,16 @@ jobs:
           "$GITHUB_WORKSPACE/bin/carrot-handoff" status
           "$GITHUB_WORKSPACE/bin/carrot-handoff" load
 
-      - name: fails cleanly outside a repository
+      # Outside a repository `save` succeeds and warns that the note will not
+      # survive a machine swap. It has warned-and-exited-0 since adeaf6d, which
+      # is why this step asserted the opposite and has been red on main since.
+      # The assertion is on the warning, not the exit status.
+      - name: warns outside a repository instead of failing
         run: |
           cd "$RUNNER_TEMP"
-          if "$GITHUB_WORKSPACE/bin/carrot-handoff" save "x"; then
-            echo "expected a non-zero exit outside a repository"
-            exit 1
-          fi
+          output="$("$GITHUB_WORKSPACE/bin/carrot-handoff" save "x")"
+          echo "$output"
+          case "$output" in
+            *"no git repository here"*) ;;
+            *) echo "expected a no-repository warning"; exit 1 ;;
+          esac

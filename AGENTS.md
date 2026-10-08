@@ -75,7 +75,7 @@ raises for a missing repository.
 ```console
 $ bundle install                       # once
 $ bundle exec rake                    # specs + rubocop (default task)
-$ bundle exec rspec                   # 50 examples
+$ bundle exec rspec                   # 55 examples
 $ bundle exec rubocop                 # lint
 $ ruby -Ilib -e 'require "carrot_handoff"'   # smoke check
 $ gem build carrot-handoff.gemspec && gem install ./carrot-handoff-*.gem
@@ -99,7 +99,7 @@ lib/carrot_handoff/record.rb   markdown in, sections out
 lib/carrot_handoff/store.rb    file IO
 lib/carrot_handoff/template.rb note rendering, git state assembly
 lib/carrot_handoff/cli.rb      argument dispatch
-spec/                          45 examples
+spec/                          55 examples
 .carrot.md                     current task note (committed)
 ```
 

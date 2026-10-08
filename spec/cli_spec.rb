@@ -87,6 +87,20 @@ RSpec.describe CarrotHandoff::CLI do
       end
     end
 
+    it 'keeps a hand-written section outside the canonical list' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nA.\n\n## Deployment notes\n\nHeroku.\n")
+
+        run_cli(['save', 'A task'], dir: dir)
+        contents = File.read(path)
+
+        expect(contents).to include('## Deployment notes')
+        expect(contents).to include('Heroku.')
+      end
+    end
+
     it 'writes to the current directory when there is no repository' do
       Dir.mktmpdir do |dir|
         allow(CarrotHandoff::Git).to receive(:root).and_return(nil)

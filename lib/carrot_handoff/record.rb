@@ -20,15 +20,17 @@ module CarrotHandoff
 
     HEADING_RE = /\A##\s+(.+?)\s*\z/
 
-    attr_reader :sections, :path
+    attr_reader :sections, :path, :headings
 
-    def initialize(sections = {}, path: nil)
+    def initialize(sections = {}, path: nil, headings: {})
       @sections = sections
+      @headings = headings
       @path = path
     end
 
     def self.parse(text, path: nil)
       sections = {}
+      headings = {}
       current = nil
       buffer = []
 
@@ -38,6 +40,7 @@ module CarrotHandoff
         if match
           sections[current] = buffer.join.strip if current
           current = normalize(match[1])
+          headings[current] ||= match[1]
           buffer = []
         elsif current
           buffer << line
@@ -45,7 +48,7 @@ module CarrotHandoff
       end
 
       sections[current] = buffer.join.strip if current
-      new(sections, path: path)
+      new(sections, path: path, headings: headings)
     end
 
     def self.load(path)
@@ -94,6 +97,15 @@ module CarrotHandoff
     # hand-written section is never silently discarded on rewrite.
     def extra_sections
       @sections.keys.reject { |key| SECTIONS.key?(key) }
+    end
+
+    # The heading text as it was written, so a note can be rendered back with the
+    # author's own wording. The slug is lossy: `normalize` collapses every run of
+    # non-alphanumerics into "_", so "Decisions (2026-10-07)" and "Decisions
+    # 2026 10 07" both parse to the same key. Only the original can tell them
+    # apart, so it is kept rather than reconstructed.
+    def heading_for(key)
+      @headings[key]
     end
 
     private

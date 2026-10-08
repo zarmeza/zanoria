@@ -75,6 +75,52 @@ RSpec.describe CarrotHandoff::Template do
     expect(output).not_to include('deleted')
   end
 
+  it 'writes extra sections back out instead of dropping them' do
+    # The failure this guards: `save` rewrites the whole file, so a section that
+    # parses but is never rendered is deleted outright. A hand-written note
+    # carries a heading the tool does not know about, and that content is
+    # exactly what exists nowhere else.
+    record = CarrotHandoff::Record.parse("## Task\n\nA task.\n\n## Deployment notes\n\nHeroku.\n")
+
+    output = described_class.render(record)
+
+    expect(output).to include('## Deployment notes')
+    expect(output).to include('Heroku.')
+  end
+
+  it 'restores the heading as written rather than the slug' do
+    # "normalize" collapses every run of non-alphanumerics to "_", so
+    # "Decisions (2026-10-07)" and "Decisions 2026 10 07" are the same key.
+    # Rendering the slug back out would mangle the heading on every save.
+    record = CarrotHandoff::Record.parse("## Task\n\nA.\n\n## Decisions (2026-10-07)\n\nX.\n")
+
+    output = described_class.render(record)
+
+    expect(output).to include('## Decisions (2026-10-07)')
+  end
+
+  it 'renders extra sections after the canonical ones, so order holds' do
+    record = CarrotHandoff::Record.parse("## Deployment notes\n\nHeroku.\n\n## Task\n\nA.\n")
+
+    output = described_class.render(record)
+    headings = output.lines.grep(/\A## /)
+
+    expect(headings.last).to eq("## Deployment notes\n")
+    expect(headings.first).to eq("## Task\n")
+  end
+
+  it 'is idempotent across a save round trip carrying an extra section' do
+    allow(CarrotHandoff::Git).to receive_messages(
+      branch: 'main', head: 'abc1234', dirty_files: [], recent_commits: []
+    )
+    record = CarrotHandoff::Record.parse("## Task\n\nA.\n\n## Deployment notes\n\nHeroku.\n")
+
+    first = described_class.render(record)
+    second = described_class.render(CarrotHandoff::Record.parse(first))
+
+    expect(second).to eq(first)
+  end
+
   describe '.observed_state' do
     it 'reports branch, HEAD, worktree and recent commits' do
       in_repo do |dir|
