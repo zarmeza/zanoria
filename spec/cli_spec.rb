@@ -379,12 +379,23 @@ RSpec.describe Zanoria::CLI do
     end
 
     # Backslashes are load-bearing in the art. In an interpolating heredoc `\ ` is
-    # an escape, so the figure loses its arms and the carrot — and every
-    # content-based example above still passes, because the words survive. This
-    # is the assertion that notices the drawing, not the sentence.
-    it 'keeps the backslashes that draw the figure' do
-      expect(Zanoria::Moo::ART).to include('\\  |  /')
-      expect(Zanoria::Moo::ART).to include('\\|/', "\n\n")
+    # an escape, so the figure loses its backslashes — and every content-based
+    # example above still passes, because the words survive. This is the
+    # assertion that notices the drawing, not the sentence.
+    #
+    # Counted rather than pattern-matched, and the difference is the whole point.
+    # The first version of this asserted on two literal strings from the original
+    # drawing, so replacing the art — with art that was perfectly fine — turned
+    # the guard red without anything being wrong. A test coupled to one drawing's
+    # exact bytes guards that drawing, not the property. Comparing the count in
+    # the parsed constant against the count in the source heredoc holds for any
+    # drawing and still fails the moment the `'` comes off `<<~'ART'`.
+    it 'keeps every backslash the source heredoc has' do
+      source = File.read(File.expand_path('../lib/zanoria/moo.rb', __dir__))
+      heredoc = source[/<<~'ART'\n(.*?)\n\s*ART$/m, 1]
+
+      expect(heredoc).not_to be_nil
+      expect(Zanoria::Moo::ART.count('\\')).to eq(heredoc.count('\\'))
     end
 
     # Monospace art that wraps in an 80-column terminal is broken, and eyeballing
