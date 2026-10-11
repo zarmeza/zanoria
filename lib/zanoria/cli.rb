@@ -41,7 +41,8 @@ module Zanoria
       'status' => :status, 'st' => :status,
       'clear' => :clear, 'rm' => :clear,
       'path' => :path,
-      'help' => :help, '-h' => :help, '--help' => :help
+      'help' => :help, '-h' => :help, '--help' => :help,
+      'moo' => :moo
     }.freeze
 
     # #run returns a process exit status: 0 on success, 1 on a handled failure.
@@ -263,6 +264,21 @@ module Zanoria
     def path(_argv = [])
       prepare!
       @out.puts Zanoria::Repo.path
+      0
+    end
+
+    # An easter egg, deliberately absent from `USAGE`. It is registered in
+    # `COMMANDS` so `zanoria moo` works, but kept out of the help text so it stays
+    # something you find rather than something you read about. `spec/cli_spec.rb`
+    # asserts both halves of that: the art prints, and the word "moo" never shows
+    # up in help — the second is the one that fails silently if someone tidies
+    # the command table later.
+    #
+    # No `prepare!` here, unlike its neighbours. It reads no note and no git
+    # state, so there is nothing to invalidate, and a joke should never touch the
+    # repository it was run in.
+    def moo(_argv = [])
+      @out.puts Moo::ART
       0
     end
 
