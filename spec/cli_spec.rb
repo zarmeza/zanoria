@@ -355,6 +355,75 @@ RSpec.describe Zanoria::CLI do
     end
   end
 
+  describe 'moo' do
+    it 'prints the art and succeeds' do
+      in_repo do |dir|
+        commit_all(dir)
+        status, out, = run_cli(['moo'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to include('Se me cayó la zanoria')
+        expect(out).to include('moo')
+      end
+    end
+
+    # The easter egg depends on being undiscoverable from the help text. Without
+    # this assertion, adding `moo` to the command table later is a tidy-up that
+    # every other example still passes.
+    it 'is absent from the help text' do
+      in_repo do |dir|
+        _status, out, = run_cli(['help'], dir: dir)
+
+        expect(out).not_to include('moo')
+      end
+    end
+
+    # Backslashes are load-bearing in the art. In an interpolating heredoc `\ ` is
+    # an escape, so the figure loses its backslashes — and every content-based
+    # example above still passes, because the words survive. This is the
+    # assertion that notices the drawing, not the sentence.
+    #
+    # Counted rather than pattern-matched, and the difference is the whole point.
+    # The first version of this asserted on two literal strings from the original
+    # drawing, so replacing the art — with art that was perfectly fine — turned
+    # the guard red without anything being wrong. A test coupled to one drawing's
+    # exact bytes guards that drawing, not the property. Comparing the count in
+    # the parsed constant against the count in the source heredoc holds for any
+    # drawing and still fails the moment the `'` comes off `<<~'ART'`.
+    it 'keeps every backslash the source heredoc has' do
+      source = File.read(File.expand_path('../lib/zanoria/moo.rb', __dir__))
+      heredoc = source[/<<~'ART'\n(.*?)\n\s*ART$/m, 1]
+
+      expect(heredoc).not_to be_nil
+      expect(Zanoria::Moo::ART.count('\\')).to eq(heredoc.count('\\'))
+    end
+
+    # Monospace art that wraps in an 80-column terminal is broken, and eyeballing
+    # it in a wide window hides exactly that.
+    it 'fits an 80-column terminal' do
+      widest = Zanoria::Moo::ART.lines.map { |line| line.chomp.length }.max
+
+      expect(widest).to be <= 80
+    end
+
+    it 'touches nothing in the repository' do
+      in_repo do |dir|
+        commit_all(dir)
+        run_cli(['save', 'A task'], dir: dir)
+        # Committed, because `save` leaves the note untracked and a dirty tree
+        # would make this assert on `save`'s effect rather than on `moo`'s.
+        git(dir, 'add', '-A')
+        git(dir, 'commit', '--quiet', '-m', 'add note')
+        before = File.read(File.join(dir, '.carrot.md'))
+
+        run_cli(['moo'], dir: dir)
+
+        expect(File.read(File.join(dir, '.carrot.md'))).to eq(before)
+        expect(git(dir, 'status', '--porcelain')).to eq('')
+      end
+    end
+  end
+
   describe 'unknown command' do
     it 'reports the command and exits non-zero' do
       in_repo do |dir|
