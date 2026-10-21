@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Trusted Publishing. The token that proves this workflow ran in this
+      # repository is minted by GitHub and handed to RubyGems directly, so
+      # there is no API key to create, store, or rotate.
+      id-token: write
+    environment: release
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -39,6 +44,3 @@ jobs:
 
       - name: Publish
         uses: rubygems/release-gem@v1
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-          MFA_TOKEN: ${{ secrets.RUBYGEMS_MFA_TOKEN }}
