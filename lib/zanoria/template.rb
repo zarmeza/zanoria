@@ -11,6 +11,7 @@ module Zanoria
     PROMPTS = {
       task: 'What this task is, in a couple of sentences. Enough for someone with no conversation history.',
       decisions: 'Choices already made, and why. Include the options rejected.',
+      attempts: 'What was tried and did not work, and why. These dead ends exist nowhere else.',
       next_action: 'The single next step, specific enough to start on cold.',
       open_questions: 'Anything unknown, unverified, or blocked. Empty is fine.'
     }.freeze
@@ -29,7 +30,13 @@ module Zanoria
       end.join("\n")
 
       extras = extra_sections(record)
-      extras.empty? ? canonical : "#{canonical}\n#{extras.join("\n")}"
+      body = extras.empty? ? canonical : "#{canonical}\n#{extras.join("\n")}"
+
+      # Whatever the author wrote before the first heading, written back out
+      # above the sections. It used to be dropped by the parser, which meant
+      # a note with a title lost it on the first save.
+      preamble = record.preamble.to_s.strip
+      preamble.empty? ? body : "#{preamble}\n\n#{body}"
     end
 
     # Unrecognized headings the note's author added, in the order they appeared.

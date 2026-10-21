@@ -20,35 +20,91 @@ module Zanoria
 
     HEADING_RE = /\A##\s+(.+?)\s*\z/
 
-    attr_reader :sections, :path, :headings
+    attr_reader :sections, :path, :headings, :preamble, :collisions
 
-    def initialize(sections = {}, path: nil, headings: {})
+    def initialize(sections = {}, path: nil, headings: {}, preamble: '', collisions: [])
       @sections = sections
       @headings = headings
       @path = path
+      @preamble = preamble
+      @collisions = collisions
     end
 
     def self.parse(text, path: nil)
-      sections = {}
-      headings = {}
+      state = { sections: {}, headings: {}, collisions: [], used: [] }
       current = nil
       buffer = []
+      preamble = []
 
       text.to_s.each_line do |line|
         match = HEADING_RE.match(line.chomp)
 
         if match
-          sections[current] = buffer.join.strip if current
-          current = normalize(match[1])
-          headings[current] ||= match[1]
+          state[:sections][current] = buffer.join.strip if current
+          current = take_key(match[1], state)
           buffer = []
         elsif current
           buffer << line
+        else
+          # Anything before the first heading is the author's own, and it used
+          # to be dropped on the floor by the next save.
+          preamble << line
         end
       end
 
-      sections[current] = buffer.join.strip if current
-      new(sections, path: path, headings: headings)
+      state[:sections][current] = buffer.join.strip if current
+
+      new_from(state, path, preamble.join.strip)
+    end
+
+    # The record a parse produced.
+    def self.new_from(state, path, preamble)
+      new(
+        state[:sections],
+        path: path,
+        headings: state[:headings],
+        preamble: preamble,
+        collisions: state[:collisions]
+      )
+    end
+
+    # The key for a heading, keeping every body the note holds.
+    #
+    # A heading that normalises to a key already seen is re-homed, so the
+    # first body is not overwritten and the second is still written back out.
+    def self.take_key(heading, state)
+      key = normalize(heading)
+
+      if state[:used].include?(key)
+        note_collision(state, key, heading)
+        key = free_key(key, state[:used])
+      end
+
+      state[:used] << key
+      state[:headings][key] ||= heading
+      key
+    end
+
+    # Record that a second heading landed on a section that was already taken.
+    def self.note_collision(state, key, heading)
+      collision = state[:collisions].find { |c| c[:key] == key }
+
+      if collision
+        collision[:headings] << heading
+      else
+        state[:collisions] << { key: key, headings: [state[:headings][key].to_s, heading] }
+      end
+    end
+
+    # A key for a heading that collided with one already seen.
+    #
+    # `other_task_2` and not `other_task`, so the name reads as what it is: a
+    # second copy of a section that already exists.
+    def self.free_key(key, used)
+      index = 2
+      index += 1 while used.include?(:"other_#{key}_#{index}")
+
+      :"other_#{key}_#{index}"
     end
 
     def self.load(path)
