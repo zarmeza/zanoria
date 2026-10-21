@@ -88,6 +88,39 @@ RSpec.describe Zanoria::Template do
     expect(output).to include('Heroku.')
   end
 
+  it 'writes the preamble back out above the sections' do
+    # The failure this guards: the parser used to drop everything before the
+    # first heading, so a note with a title lost it on the first save.
+    record = Zanoria::Record.parse("# Handoff note\n\nSome preamble.\n\n## Task\n\nA.\n")
+
+    output = described_class.render(record)
+
+    expect(output).to start_with("# Handoff note\n\nSome preamble.\n\n## Task")
+  end
+
+  it 'keeps the preamble through a save' do
+    record = Zanoria::Record.parse("# Handoff note\n\nSome preamble.\n\n## Task\n\nA.\n")
+
+    reparsed = Zanoria::Record.parse(described_class.render(record))
+
+    expect(reparsed.preamble).to eq("# Handoff note\n\nSome preamble.")
+  end
+
+  # Every section a human writes gets a prompt saying what belongs there.
+  # `Tried and failed` shipped without one, and it is the section the tool
+  # exists for.
+  it 'gives every human section a prompt that says what goes there' do
+    human = Zanoria::Record::SECTIONS.keys - [:state]
+
+    expect(human.map { |key| described_class.prompt_for(key) }).to all(match(/_TODO: .+_/))
+  end
+
+  it 'does not fall back to a bare prompt for a human section' do
+    human = Zanoria::Record::SECTIONS.keys - [:state]
+
+    expect(human.map { |key| described_class.prompt_for(key) }).not_to include('_TODO:_')
+  end
+
   it 'restores the heading as written rather than the slug' do
     # "normalize" collapses every run of non-alphanumerics to "_", so
     # "Decisions (2026-10-07)" and "Decisions 2026 10 07" are the same key.

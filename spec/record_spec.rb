@@ -54,6 +54,30 @@ RSpec.describe Zanoria::Record do
       expect(record.extra_sections.map(&:to_s)).to eq(%w[other_deployment_notes])
     end
 
+    it 'keeps whatever the author wrote before the first heading' do
+      record = described_class.parse("# Handoff note\n\nSome preamble.\n\n## Task\n\nA.\n")
+
+      expect(record.preamble).to eq("# Handoff note\n\nSome preamble.")
+    end
+
+    it 'keeps the first body when two headings are the same section' do
+      record = described_class.parse("## Task\n\nFirst.\n\n## TASK\n\nSecond.\n")
+
+      expect(record.task).to eq('First.')
+    end
+
+    it 'keeps the second body as a section of its own' do
+      record = described_class.parse("## Task\n\nFirst.\n\n## TASK\n\nSecond.\n")
+
+      expect(record.extra_sections.map(&:to_s)).to eq(%w[other_task_2])
+    end
+
+    it 'records which headings collided' do
+      record = described_class.parse("## Task\n\nFirst.\n\n## TASK\n\nSecond.\n")
+
+      expect(record.collisions.map { |c| c[:headings] }).to eq([%w[Task TASK]])
+    end
+
     it 'handles empty input' do
       expect(described_class.parse('').sections).to eq({})
       expect(described_class.parse(nil).sections).to eq({})

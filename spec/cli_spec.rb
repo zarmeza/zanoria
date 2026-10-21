@@ -318,6 +318,70 @@ RSpec.describe Zanoria::CLI do
         expect(out).to include('extra:    deployment_notes')
       end
     end
+
+    it 'warns about a subheading in the State section' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nA.\n\n## State\n\n- Branch: `main`\n\n### 2026-10-10\n\nContext.\n")
+
+        _, out, = run_cli(['status'], dir: dir)
+
+        expect(out).to match(/warning:.*State/)
+      end
+    end
+  end
+
+  describe 'a note that would lose content' do
+    # A subheading written just above the next `##` heading lands in `State`,
+    # and `State` is regenerated from git on every save. The block is deleted
+    # and the note still looks healthy: the section is still there, and it
+    # still has text in it.
+    let(:note_with_state_subheading) do
+      "## Task\n\nA.\n\n## State\n\n- Branch: `main`\n\n### 2026-10-10\n\nContext.\n"
+    end
+
+    it 'refuses to save over it, and writes nothing' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, note_with_state_subheading)
+        before = File.binread(path)
+
+        status, _out, err = run_cli(['save', 'A task'], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('State')
+        expect(File.binread(path)).to eq(before)
+      end
+    end
+
+    it 'keeps the preamble through a save' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "# Handoff note\n\nSome preamble.\n\n## Task\n\nA.\n")
+
+        status, = run_cli(['save', 'A task'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(File.read(path)).to include('Some preamble.')
+      end
+    end
+
+    it 'keeps both bodies when two headings are the same section' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Decisions\n\nFirst.\n\n## DECISIONS\n\nSecond.\n")
+
+        status, = run_cli(['save', 'A task'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(File.read(path)).to include('First.')
+        expect(File.read(path)).to include('Second.')
+      end
+    end
   end
 
   describe 'clear' do
