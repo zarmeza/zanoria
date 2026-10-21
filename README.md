@@ -47,7 +47,7 @@ Until it is published, install it from a clone:
 ```console
 $ git clone https://github.com/zarmeza/zanoria.git
 $ cd zanoria
-$ gem build zanoria.gemspec && gem install ./zanoria-*.gem
+$ rake install
 ```
 
 The installed gem is a snapshot of a release rather than a link to the
@@ -238,14 +238,35 @@ so rebuild and reinstall after changing `lib/` — `rake install` does both.
 
 ```console
 $ rake install                # build the gem and install it
-$ rake release                # build it and push it to RubyGems
+$ rake release                # build it, tag it, and let CI publish it
 ```
 
 `rake release` refuses to run on a dirty tree, off `main`, or with a version
 that is already published. The decision lives in `Zanoria::Release.check!`,
-which is specified; the task only gathers the facts and pushes. A tag of the
-form `v<version>` triggers the publish workflow, which refuses a tag that
-disagrees with `lib/zanoria/version.rb`.
+which is specified; the task only gathers the facts and pushes.
+
+The task pushes a **tag**, not a gem. The tag triggers the Publish workflow,
+which runs the same guard over the tag (`Zanoria::Release.check_tag!` — the
+tag has to match the version, and the tagged commit has to be on `main`) and
+then publishes through **Trusted Publishing**: GitHub mints a short-lived
+OIDC token and hands it to RubyGems. There is no API key to create, store, or
+rotate anywhere in this path, which is the reason it was chosen over
+`gem push`.
+
+Publishing needs one thing set up on RubyGems first, once, for a gem that
+does not exist yet:
+
+1. Create a **pending trusted publisher** at
+   `https://rubygems.org/profile/oidc/pending_trusted_publishers` — gem name
+   `zanoria`, repository owner `zarmeza`, repository name `zanoria`, workflow
+   filename `publish.yml`, environment `release`. After the first successful
+   push it becomes an ordinary trusted publisher and you own the gem.
+2. Create the `release` **environment** in the repository. The workflow
+   references it by that name, and the pending publisher above has to name the
+   same one. GitHub will create it implicitly at the first release, but an
+   explicit one is where required reviewers and a wait timer would go.
+
+Both are one-time steps. After that, `rake release` is the whole procedure.
 
 Ruby 4.0.7. No runtime dependencies — `open3` and `json` are stdlib.
 

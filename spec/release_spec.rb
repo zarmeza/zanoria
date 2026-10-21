@@ -30,6 +30,38 @@ RSpec.describe Zanoria::Release do
     end
   end
 
+  describe '.check_tag!' do
+    let(:facts) { { tag: 'v1.0.0', version: '1.0.0', published: [], on_main: true } }
+
+    it 'passes on a matching tag, on main, with an unpublished version' do
+      expect { described_class.check_tag!(**facts) }.not_to raise_error
+    end
+
+    it 'refuses a tag that disagrees with the version' do
+      expect { described_class.check_tag!(**facts, tag: 'v1.0.1') }
+        .to raise_error(Zanoria::Error, /does not match/)
+    end
+
+    it 'refuses a tag without the v prefix' do
+      expect { described_class.check_tag!(**facts, tag: '1.0.0') }
+        .to raise_error(Zanoria::Error, /does not match/)
+    end
+
+    it 'refuses a tagged commit that is not on main' do
+      expect { described_class.check_tag!(**facts, on_main: false) }
+        .to raise_error(Zanoria::Error, /not on main/)
+    end
+
+    it 'refuses a version that is already published' do
+      expect { described_class.check_tag!(**facts, published: ['1.0.0']) }
+        .to raise_error(Zanoria::Error, /already published/)
+    end
+
+    it 'allows a published gem to have other versions' do
+      expect { described_class.check_tag!(**facts, published: %w[0.9.0 0.8.0]) }.not_to raise_error
+    end
+  end
+
   describe '.published_versions' do
     it 'reads the versions out of the gem list output' do
       expect(described_class.published_versions('zanoria (1.0.0, 0.9.0)')).to eq(%w[1.0.0 0.9.0])
