@@ -32,6 +32,24 @@ module Zanoria
       raise Error, "#{version} is already published on RubyGems"
     end
 
+    # Raise `Zanoria::Error` unless a tag may publish.
+    #
+    # This is the guard for the path that actually publishes. The workflow runs
+    # on a pushed tag, not on the rake task, so a tag pushed by hand would
+    # otherwise publish with none of the checks `check!` makes. Same rules,
+    # different facts: `tag` is the name of the tag, `version` the version it
+    # claims, `published` the versions already on RubyGems, and `on_main`
+    # whether the tagged commit is on `BRANCH`.
+    def check_tag!(tag:, version:, published:, on_main:)
+      raise Error, "tag #{tag} does not match version #{version}" unless tag == "v#{version}"
+
+      raise Error, "the tagged commit is not on #{BRANCH}" unless on_main
+
+      return unless published.include?(version)
+
+      raise Error, "#{version} is already published on RubyGems"
+    end
+
     # The versions named in the output of `gem list --remote --exact --all`.
     #
     # The command prints one line per gem, `name (1.0.0, 0.9.0)`, and prints

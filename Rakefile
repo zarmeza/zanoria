@@ -1,12 +1,22 @@
 # frozen_string_literal: true
 
-require 'rspec/core/rake_task'
-require 'rubocop/rake_task'
+# The development tasks need gems that are not part of the runtime, so they
+# are loaded only when they are there. Someone installing the tool from a
+# clone should not have to install rspec and rubocop to do it — and the
+# install task is the one an end user is most likely to run.
+begin
+  require 'rspec/core/rake_task'
+  RSpec::Core::RakeTask.new(:spec)
+  require 'rubocop/rake_task'
+  RuboCop::RakeTask.new
 
-RSpec::Core::RakeTask.new(:spec)
-RuboCop::RakeTask.new
-
-task default: %i[spec rubocop]
+  task default: %i[spec rubocop]
+rescue LoadError => e
+  desc 'Run the specs and the linter (needs `bundle install`)'
+  task :default do
+    abort "the development tasks need the bundle: run `bundle install` (#{e.message})"
+  end
+end
 
 # Rewrite the README's documented block from `Wiring::BLOCK`.
 #
@@ -43,13 +53,19 @@ task :install do
   sh "gem install ./zanoria-#{Zanoria::VERSION}.gem"
 end
 
-# Build the gem and push it to RubyGems.
+# Build the gem, tag it, and let CI publish it to RubyGems.
 #
 # The guard is `Zanoria::Release.check!`, which refuses on a dirty tree, off
 # `main`, or with a version that is already published. Publishing is the one
 # irreversible action in this project, so the decision lives in the library
 # where it can be specified, and this task only gathers the facts and pushes.
-desc 'Build and publish the gem to RubyGems'
+#
+# The task pushes a tag rather than the gem. The gem is published by the
+# workflow, which trades a short-lived OIDC token for push access — there is no
+# API key to create, store, or rotate, which is the whole reason that path was
+# chosen. Pushing a tag is also the smaller of the two irreversible actions: a
+# tag can be deleted, a published version cannot.
+desc 'Build the gem, tag it, and let CI publish it to RubyGems'
 task :release do
   require 'open3'
   require_relative 'lib/zanoria'
@@ -67,5 +83,9 @@ task :release do
   )
 
   sh 'gem build zanoria.gemspec'
-  sh "gem push zanoria-#{Zanoria::VERSION}.gem"
+
+  tag = "v#{Zanoria::VERSION}"
+  sh "git tag #{tag}"
+  sh "git push origin #{tag}"
+  puts "pushed #{tag}. The Publish workflow will publish #{Zanoria::VERSION} to RubyGems."
 end
