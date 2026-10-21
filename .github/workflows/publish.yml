@@ -1,0 +1,44 @@
+name: Publish
+
+# Publishing is triggered by a tag and by nothing else.
+#
+# A tag is a deliberate act: the version in `lib/zanoria/version.rb` has to
+# match the tag, and `rake release` has to have passed its guard on a clean
+# tree. Nothing in this workflow can publish by accident, and it does not run
+# on pull requests at all.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    name: Publish to RubyGems
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+
+      # A tag that disagrees with the version would publish a gem whose name
+      # says one thing and whose contents say another, and the two can never
+      # be reconciled once the name is taken.
+      - name: Check the tag matches the version
+        run: |
+          version=$(ruby -Ilib -e 'require "zanoria/version"; print Zanoria::VERSION')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match version $version" >&2
+            exit 1
+          fi
+
+      - name: Build
+        run: gem build zanoria.gemspec
+
+      - name: Publish
+        uses: rubygems/release-gem@v1
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+          MFA_TOKEN: ${{ secrets.RUBYGEMS_MFA_TOKEN }}
