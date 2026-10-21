@@ -20,6 +20,10 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = '>= 3.3'
 
   spec.metadata['rubygems_mfa_required'] = 'true'
+  spec.metadata['source_code_uri'] = 'https://github.com/zarmeza/zanoria'
+  spec.metadata['bug_tracker_uri'] = 'https://github.com/zarmeza/zanoria/issues'
+  spec.metadata['changelog_uri'] = 'https://github.com/zarmeza/zanoria/commits/main'
+  spec.metadata['documentation_uri'] = 'https://github.com/zarmeza/zanoria#readme'
 
   spec.files = Dir['bin/zanoria', 'lib/**/*.rb', 'README.md', 'LICENSE']
   spec.bindir = 'bin'

@@ -79,13 +79,15 @@ $ bundle exec rake                    # specs + rubocop (default task)
 $ bundle exec rspec                   # run the suite; it reports its own count
 $ bundle exec rubocop                 # lint
 $ ruby -Ilib -e 'require "zanoria"'   # smoke check
-$ gem build zanoria.gemspec && gem install ./zanoria-*.gem
+$ rake install                        # build the gem and install it locally
+$ rake release                        # build it and push it to RubyGems
 $ rake docs:sync                      # README block from Wiring::BLOCK
 ```
 
 The gem is installed locally, so `zanoria` works from any directory. It
-is a snapshot, not a link: after changing `lib/`, rebuild and reinstall, or
-invoke `ruby bin/zanoria` from this checkout to test the working copy.
+is a snapshot, not a link: after changing `lib/`, rebuild and reinstall
+(`rake install`), or invoke `ruby bin/zanoria` from this checkout to test the
+working copy.
 
 `bundle exec rake` is the gate: both specs and RuboCop must be clean. Neither
 this file nor the README states an example count; they drifted apart twice
@@ -104,6 +106,7 @@ lib/zanoria/store.rb    file IO
 lib/zanoria/template.rb note rendering, git state assembly
 lib/zanoria/wiring.rb   the AGENTS.md block, and its markers
 lib/zanoria/init.rb     one-time setup: note, wiring, staging
+lib/zanoria/release.rb  the guards that stand between a tree and a published gem
 lib/zanoria/cli.rb      argument dispatch
 spec/                          specs
 .carrot.md                     current task note (committed)
@@ -174,6 +177,15 @@ hand-written section survives a rewrite. Never let a malformed note raise.
 `Zanoria::Template.body_for` regenerates prompts on every render, which is
 what makes repeated `save` calls idempotent. If you add a section, add it to
 `Zanoria::Record::SECTIONS` and to `Zanoria::Template::PROMPTS`.
+
+**The release guard lives in the library, not in the rake task.** `rake
+release` is the only thing that pushes a gem, and it refuses on a dirty tree,
+off `main`, or with a version already on RubyGems. The decision itself is
+`Zanoria::Release.check!` — a pure function over facts the caller gathers, so
+it can be specified without a network, a gem server, or a real release, which
+is the only way to test an irreversible operation. Do not move the guards
+back into the Rakefile: a guard that can only be reached by publishing is a
+guard that is never reached.
 
 **Specs build real repositories.** Use the `in_repo` helper and `commit_all`
 from `spec/spec_helper.rb`. Do not stub `Zanoria::Git` — the point is to
