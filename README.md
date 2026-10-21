@@ -35,6 +35,25 @@ block in place, so renaming them would make every already-wired repository gain
 a second copy of the instructions instead of an updated one. Only the tool has a
 name worth mispronouncing.
 
+## Installation
+
+```console
+$ gem install zanoria
+```
+
+**Not on RubyGems yet** — the name is unclaimed, so that command fails today.
+Until it is published, install it from a clone:
+
+```console
+$ git clone https://github.com/zarmeza/zanoria.git
+$ cd zanoria
+$ gem build zanoria.gemspec && gem install ./zanoria-*.gem
+```
+
+The installed gem is a snapshot of a release rather than a link to the
+checkout, so rebuild and reinstall after changing `lib/`. `rake install` does
+both in one step.
+
 ## Usage
 
 Start a repo once:
@@ -111,7 +130,7 @@ $ zanoria init --file AGENTS.md --file CLAUDE.md
 
 ## The format
 
-Six sections. Three of them a machine fills in, three only you or an agent can.
+Six sections. One of them a machine fills in, five only you or an agent can.
 
 | Section | Filled by | Holds |
 |---|---|---|
@@ -213,13 +232,20 @@ $ bundle exec rspec       # run the suite; it reports its own example count
 $ bundle exec rubocop
 ```
 
-Installed locally with `gem install`, so the `zanoria` command works from
-any directory. It is a snapshot of a release rather than a link to the checkout,
-so rebuild and reinstall after changing `lib/`:
+The gem is installed locally, so the `zanoria` command works from any
+directory. It is a snapshot of a release rather than a link to the checkout,
+so rebuild and reinstall after changing `lib/` — `rake install` does both.
 
 ```console
-$ gem build zanoria.gemspec && gem install ./zanoria-*.gem
+$ rake install                # build the gem and install it
+$ rake release                # build it and push it to RubyGems
 ```
+
+`rake release` refuses to run on a dirty tree, off `main`, or with a version
+that is already published. The decision lives in `Zanoria::Release.check!`,
+which is specified; the task only gathers the facts and pushes. A tag of the
+form `v<version>` triggers the publish workflow, which refuses a tag that
+disagrees with `lib/zanoria/version.rb`.
 
 Ruby 4.0.7. No runtime dependencies — `open3` and `json` are stdlib.
 
