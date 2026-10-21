@@ -180,14 +180,9 @@ module Zanoria
       existing = Store.read_or_empty(path)
       task = argv.join(' ').strip
 
-      sections = existing.sections.dup
-      sections[:task] = task unless task.empty?
+      refuse_to_lose_content(existing)
 
-      # `headings:` has to be carried across, not just `sections`. The record is
-      # rebuilt here to swap in the new task, and without this the author's own
-      # heading wording for any extra section is gone by the time it renders.
-      record = Record.new(sections, path: path, headings: existing.headings)
-      Store.write(path, Template.render(record))
+      Store.write(path, Template.render(rebuild(existing, path, task)))
 
       if !Zanoria::Repo.in_repo?
         @out.puts "Wrote #{path} (no git repository here — this note will not"
@@ -199,6 +194,43 @@ module Zanoria
       end
 
       0
+    end
+
+    # The note as it will be written.
+    #
+    # `headings:` has to be carried across, not just `sections`. The record is
+    # rebuilt here to swap in the new task, and without this the author's own
+    # heading wording for any extra section is gone by the time it renders.
+    # The preamble and the collisions come along for the same reason.
+    def rebuild(existing, path, task)
+      sections = existing.sections.dup
+      sections[:task] = task unless task.empty?
+
+      Record.new(
+        sections,
+        path: path,
+        headings: existing.headings,
+        preamble: existing.preamble,
+        collisions: existing.collisions
+      )
+    end
+
+    # Refuse to save a note that the save would silently damage.
+    #
+    # The content at risk is the only copy of it. The note is committed, but
+    # a note that quietly lost a block between one save and the next looks
+    # perfectly healthy to `status`: the section is still there, and it still
+    # has text in it.
+    def refuse_to_lose_content(existing)
+      losses = Zanoria::Lint.destructive(existing)
+      return if losses.empty?
+
+      raise Error, <<~MSG
+        refusing to save: #{losses.join('; ')}.
+
+        Nothing was written. Move the content under Decisions, Tried and
+        failed, Next action or Open questions, or delete it, and save again.
+      MSG
     end
 
     def load(_argv = [])
@@ -229,6 +261,11 @@ module Zanoria
       @out.puts "file:     #{Zanoria::Repo.path}"
       @out.puts "sections: #{written_summary(record)}"
       @out.puts "extra:    #{extra_summary(record)}" unless record.extra_sections.empty?
+
+      # A count cannot see a note that is wrong. These are the things that are
+      # wrong in a way a count cannot: content that a save would delete, a
+      # heading left behind twice, two headings that are the same section.
+      Zanoria::Lint.anomalies(record).each { |anomaly| @out.puts "warning:  #{anomaly}" }
 
       0
     end
