@@ -80,7 +80,7 @@ $ bundle exec rspec                   # run the suite; it reports its own count
 $ bundle exec rubocop                 # lint
 $ ruby -Ilib -e 'require "zanoria"'   # smoke check
 $ rake install                        # build the gem and install it locally
-$ rake release                        # build it and push it to RubyGems
+$ rake release                        # build it, tag it, and let CI publish it
 $ rake docs:sync                      # README block from Wiring::BLOCK
 ```
 
@@ -178,14 +178,26 @@ hand-written section survives a rewrite. Never let a malformed note raise.
 what makes repeated `save` calls idempotent. If you add a section, add it to
 `Zanoria::Record::SECTIONS` and to `Zanoria::Template::PROMPTS`.
 
-**The release guard lives in the library, not in the rake task.** `rake
-release` is the only thing that pushes a gem, and it refuses on a dirty tree,
-off `main`, or with a version already on RubyGems. The decision itself is
-`Zanoria::Release.check!` — a pure function over facts the caller gathers, so
-it can be specified without a network, a gem server, or a real release, which
-is the only way to test an irreversible operation. Do not move the guards
-back into the Rakefile: a guard that can only be reached by publishing is a
-guard that is never reached.
+**The release guard lives in the library, not in the rake task.** Publishing
+is the one irreversible action in this project, so the decision is written as
+pure functions over facts the caller gathers: `Zanoria::Release.check!` for
+the local path (dirty tree, off `main`, version already on RubyGems) and
+`Zanoria::Release.check_tag!` for the tag path (tag matches the version, the
+tagged commit is on `main`, version already on RubyGems). Both are specified
+without a network, a gem server, or a real release, which is the only way to
+test an irreversible operation. Do not move the guards back into the Rakefile,
+and do not reimplement them in the workflow: a guard that can only be reached
+by publishing is a guard that is never reached, and a second copy of the same
+rules is a second copy free to be wrong in a new way.
+
+**The publish path has exactly one route, and it carries no API key.** `rake
+release` builds, guards, tags `v<version>`, and pushes the tag. The Publish
+workflow publishes from that tag through Trusted Publishing — GitHub mints a
+short-lived OIDC token and hands it to RubyGems. Nothing in the path pushes a
+gem directly, because `gem push` needs an API key, and the reason for OIDC
+was to have no key to create, store, or rotate.
+`spec/publish_workflow_spec.rb` pins the shape of the workflow so the route
+cannot quietly grow a second one.
 
 **Specs build real repositories.** Use the `in_repo` helper and `commit_all`
 from `spec/spec_helper.rb`. Do not stub `Zanoria::Git` — the point is to
