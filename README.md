@@ -130,7 +130,7 @@ $ zanoria init --file AGENTS.md --file CLAUDE.md
 
 ## The format
 
-Six sections. Three of them a machine fills in, three only you or an agent can.
+Six sections. One of them a machine fills in, five only you or an agent can.
 
 | Section | Filled by | Holds |
 |---|---|---|
