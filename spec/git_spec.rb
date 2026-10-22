@@ -204,4 +204,41 @@ RSpec.describe Zanoria::Git do
       end
     end
   end
+
+  describe 'the upstream' do
+    it 'counts the commits that touched the note and are not pushed' do
+      in_repo do |dir|
+        commit_all(dir, filename: '.carrot.md', body: "## Task\n\nA.\n")
+        path = File.join(dir, '.carrot.md')
+
+        with_remote(dir) do
+          expect(described_class.commits_ahead_of_upstream(path)).to eq(0)
+
+          commit_all(dir, message: 'Second', filename: '.carrot.md', body: "## Task\n\nB.\n")
+          commit_all(dir, message: 'Third', filename: '.carrot.md', body: "## Task\n\nC.\n")
+
+          expect(described_class.commits_ahead_of_upstream(path)).to eq(2)
+        end
+      end
+    end
+
+    it 'is nil rather than zero when there is no upstream' do
+      in_repo do |dir|
+        commit_all(dir, filename: '.carrot.md', body: "## Task\n\nA.\n")
+
+        expect(described_class.upstream).to be_nil
+        expect(described_class.commits_ahead_of_upstream(File.join(dir, '.carrot.md'))).to be_nil
+      end
+    end
+
+    it 'names the branch the current one tracks' do
+      in_repo do |dir|
+        commit_all(dir, filename: '.carrot.md', body: "## Task\n\nA.\n")
+
+        with_remote(dir) do
+          expect(described_class.upstream).to match(%r{\Aorigin/})
+        end
+      end
+    end
+  end
 end
