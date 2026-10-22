@@ -6,9 +6,15 @@ name: Publish
 # task runs, so a tag pushed by hand gets the same checks a tag pushed by
 # `rake release` does. Nothing here can publish by accident, and it does not
 # run on pull requests at all.
+#
+# The manual trigger is not a second way to publish. It checks the publish
+# path and stops before the push. The link that had never been exercised is
+# the exchange of the OIDC token with RubyGems, and there is no reason to
+# exercise it for the first time during the one step that cannot be undone.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -39,7 +45,11 @@ jobs:
       # gem whose name says one thing and whose contents say another; a tag
       # from a branch other than main would publish unreviewed code; and a
       # version already on RubyGems cannot be republished at all.
+      #
+      # Only a tag can publish, so only a tag is guarded: a manual run has no
+      # tag to check.
       - name: Check the tag may publish
+        if: github.event_name == 'push'
         run: |
           git fetch --quiet origin main
           export PUBLISHED="$(gem list --remote --exact --all zanoria)"
@@ -63,5 +73,27 @@ jobs:
       - name: Build
         run: gem build zanoria.gemspec
 
+      # Trusted Publishing, in two steps rather than one action.
+      #
+      # GitHub mints a short-lived OIDC token that proves this workflow ran
+      # in this repository, and RubyGems exchanges it for a short-lived push
+      # token. There is no API key to create, store, or rotate.
+      #
+      # `rubygems/release-gem@v1` does this too, and then runs
+      # `bundle exec rake release` in the working directory — which in this
+      # repository is a task that guards a local release and pushes a *tag*,
+      # not one that pushes a gem. The publish step failed with "releases are
+      # cut from main, not HEAD", and the gem was never pushed. So the two
+      # things this workflow actually needs are done here, explicitly.
+      - name: Configure trusted publishing credentials
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+
+      # Only a tag publishes. A manual run gets as far as the exchange, which
+      # is the link that has to work, and stops there.
+      #
+      # The glob is the version: the file is named after it, and a name that
+      # had to be edited for every release would be one more thing to forget.
+      # A fresh checkout holds exactly one.
       - name: Publish
-        uses: rubygems/release-gem@v1
+        if: github.event_name == 'push'
+        run: gem push zanoria-*.gem

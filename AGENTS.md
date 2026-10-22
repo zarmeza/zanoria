@@ -205,11 +205,22 @@ rules is a second copy free to be wrong in a new way.
 **The publish path has exactly one route, and it carries no API key.** `rake
 release` builds, guards, tags `v<version>`, and pushes the tag. The Publish
 workflow publishes from that tag through Trusted Publishing — GitHub mints a
-short-lived OIDC token and hands it to RubyGems. Nothing in the path pushes a
-gem directly, because `gem push` needs an API key, and the reason for OIDC
-was to have no key to create, store, or rotate.
+short-lived OIDC token and hands it to RubyGems. The reason for OIDC was to
+have no key to create, store, or rotate, so nothing in the path reads one:
+the workflow exchanges the OIDC token for a short-lived push token, and
+`gem push` uses that. `gem push` on its own would need a key, which is why
+the exchange is a step of its own and comes before the push.
 `spec/publish_workflow_spec.rb` pins the shape of the workflow so the route
 cannot quietly grow a second one.
+
+**The workflow does not run `rake release`.** `rubygems/release-gem@v1` runs
+`bundle exec rake release` in the working directory, and in this repository
+that task guards a local release and pushes a *tag*, not a gem — so the
+publish step failed with "releases are cut from main, not HEAD" and the gem
+was never pushed. The workflow does the two things it needs itself: exchange
+the OIDC token, then push the gem. A manual run of the workflow stops after
+the exchange, because that link is the one worth exercising before the step
+that cannot be undone.
 
 **Specs build real repositories.** Use the `in_repo` helper and `commit_all`
 from `spec/spec_helper.rb`. Do not stub `Zanoria::Git` — the point is to
