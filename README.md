@@ -113,6 +113,10 @@ Upgrade omniauth-facebook
 Aliases: `new` for `save`, `setup` for `init`, `show`/`cat` for `load`, `st` for
 `status`, `rm` for `clear`.
 
+`save TASK` refuses to replace a `Task` section that holds more than the line you
+are writing, because those paragraphs exist nowhere else. Pass `--replace-task`
+when you mean to discard them.
+
 ## `init`
 
 `save` writes the note; `init` sets up the repository so a handoff can happen at

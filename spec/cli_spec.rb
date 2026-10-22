@@ -510,6 +510,53 @@ RSpec.describe Zanoria::CLI do
       end
     end
 
+    # `save "<task>"` used to replace the whole Task section, so the paragraphs
+    # a previous session wrote there went with it. The note still parsed, and
+    # the section count did not move, so nothing reported the loss.
+    it 'refuses to replace a Task that holds more than its first paragraph' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nShip it.\n\nThe context paragraph.\n\nMore context.\n")
+        before = File.binread(path)
+
+        status, _out, err = run_cli(['save', 'Something else'], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('refusing to save')
+        expect(err).to include('Task')
+        expect(err).to include('The context paragraph.')
+        expect(err).to include('More context.')
+        expect(File.binread(path)).to eq(before)
+      end
+    end
+
+    it 'replaces the Task when --replace-task asks for it' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nShip it.\n\nThe context paragraph.\n")
+
+        status, = run_cli(['save', '--replace-task', 'Something else'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(Zanoria::Record.load(path).task).to eq('Something else')
+      end
+    end
+
+    it 'still replaces a Task that holds only the line being written' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nShip it.\n")
+
+        status, = run_cli(['save', 'Something else'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(Zanoria::Record.load(path).task).to eq('Something else')
+      end
+    end
+
     it 'keeps the preamble through a save' do
       in_repo do |dir|
         commit_all(dir)
