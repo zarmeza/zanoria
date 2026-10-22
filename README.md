@@ -95,7 +95,7 @@ Upgrade omniauth-facebook
 
 | Command | Does |
 |---|---|
-| `zanoria init [TASK]` | Set a repo up: create the note, wire the agent instructions, stage both. |
+| `zanoria init [TASK]` | Set a repo up: create the note, wire the instruction file the repo already has, stage both. |
 | `zanoria save [TASK]` | Write or update the note. Preserves sections you already wrote. |
 | `zanoria load` | Print the note. |
 | `zanoria status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. |
@@ -111,10 +111,22 @@ Aliases: `new` for `save`, `setup` for `init`, `show`/`cat` for `load`, `st` for
 all. It does three things:
 
 1. Writes `.carrot.md` if there is not one already.
-2. Drops the instructions below into `AGENTS.md`, so some agent knows to read
-   the note. Nothing discovers a file on its own.
+2. Drops the instructions below into the agent instruction file, so some agent
+   knows to read the note. Nothing discovers a file on its own.
 3. `git add`s both and prints the commit line, because an uncommitted note does
    not survive anything.
+
+**Which instruction file it wires is the repository's decision.** If the
+repository already has an `AGENTS.md` or a `CLAUDE.md` at its root, that is the
+file it wires; if it has both, it wires both. Only when it has neither does
+`init` create an `AGENTS.md`.
+
+This matters because the tools disagree about which file they read. Claude Code
+reads `CLAUDE.md` in preference to `AGENTS.md`, so wiring an `AGENTS.md` into a
+repository that has a `CLAUDE.md` would put the instructions where nobody opens
+them — the note would exist and the handoff would never arrive. A repository
+with both files is wired in both, because Claude Code reads one and opencode
+reads the other.
 
 **`init` never overwrites an existing note.** `Tried and failed` is the only
 record of what was tried, and there is no second copy of it anywhere — so a
@@ -122,7 +134,9 @@ reworded `Task` in `init` is applied only when the note is actually being
 created. Re-run it as often as you like; it is idempotent, and an existing
 block is replaced in place rather than stacked a second time.
 
-Point it at a different instruction file with `--file`, repeatable:
+Point it at a specific instruction file with `--file`, repeatable. It replaces
+the detection above rather than adding to it, so only the files you name are
+wired:
 
 ```console
 $ zanoria init --file AGENTS.md --file CLAUDE.md
@@ -154,8 +168,9 @@ under `extra:` so a hand-written section is never silently dropped.
 
 ## Wiring it into an agent
 
-Run `zanoria init`. It writes the note, adds this block to `AGENTS.md`
-between markers, and stages both:
+Run `zanoria init`. It writes the note, adds this block to the instruction file
+the repository already has (`AGENTS.md`, `CLAUDE.md`, or both) between markers,
+and stages them:
 
 ```markdown
 <!-- block:begin -->

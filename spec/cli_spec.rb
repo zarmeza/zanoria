@@ -46,7 +46,7 @@ RSpec.describe Zanoria::CLI do
   end
 
   describe 'init' do
-    it 'creates the note and wires AGENTS.md by default' do
+    it 'creates the note and an AGENTS.md when the repository has neither' do
       in_repo do |dir|
         commit_all(dir)
         status, out, = run_cli(['init'], dir: dir)
@@ -56,6 +56,76 @@ RSpec.describe Zanoria::CLI do
         expect(File.read(File.join(dir, 'AGENTS.md'))).to include('carrot-handoff:begin')
         expect(out).to include('created')
         expect(out).to include('wired')
+      end
+    end
+
+    # The repository decides which instruction file gets wired. A `CLAUDE.md`
+    # that `init` ignores leaves Claude Code reading a file without the block,
+    # and the handoff silently undelivered.
+    it 'wires the CLAUDE.md the repository already has' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, 'CLAUDE.md'), "# Project\n\nReglas del proyecto.\n")
+        git(dir, 'add', '-A')
+        git(dir, 'commit', '--quiet', '-m', 'Add CLAUDE.md')
+
+        _status, out, = run_cli(['init'], dir: dir)
+
+        expect(File.read(File.join(dir, 'CLAUDE.md'))).to include('carrot-handoff:begin')
+        expect(File).not_to exist(File.join(dir, 'AGENTS.md'))
+        expect(out).to include('CLAUDE.md')
+      end
+    end
+
+    # Claude Code reads `CLAUDE.md` and opencode reads `AGENTS.md`, so each one
+    # needs the block in the file it reads.
+    it 'wires both when the repository has both' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, 'AGENTS.md'), "# Agents\n")
+        File.write(File.join(dir, 'CLAUDE.md'), "# Project\n")
+        git(dir, 'add', '-A')
+        git(dir, 'commit', '--quiet', '-m', 'Add instruction files')
+
+        _status, = run_cli(['init'], dir: dir)
+
+        expect(File.read(File.join(dir, 'AGENTS.md'))).to include('carrot-handoff:begin')
+        expect(File.read(File.join(dir, 'CLAUDE.md'))).to include('carrot-handoff:begin')
+      end
+    end
+
+    # Re-running `init` must not stack a second block under the first. The
+    # bytes are compared, because a line count would pass while the file grew.
+    it 'leaves a wired CLAUDE.md byte-identical on a second run' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, 'CLAUDE.md'), "# Project\n")
+        git(dir, 'add', '-A')
+        git(dir, 'commit', '--quiet', '-m', 'Add CLAUDE.md')
+
+        run_cli(['init'], dir: dir)
+        first = File.binread(File.join(dir, 'CLAUDE.md'))
+
+        run_cli(['init'], dir: dir)
+
+        expect(File.binread(File.join(dir, 'CLAUDE.md'))).to eq(first)
+      end
+    end
+
+    # An explicit `--file` is a decision, and it wins over the detection: the
+    # tool does not add files the person did not ask for.
+    it 'wires only what --file names' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, 'CLAUDE.md'), "# Project\n")
+        git(dir, 'add', '-A')
+        git(dir, 'commit', '--quiet', '-m', 'Add CLAUDE.md')
+
+        run_cli(%w[init --file docs/AGENTS.md], dir: dir)
+
+        expect(File).to exist(File.join(dir, 'docs', 'AGENTS.md'))
+        expect(File.read(File.join(dir, 'CLAUDE.md'))).not_to include('carrot-handoff:begin')
+        expect(File).not_to exist(File.join(dir, 'AGENTS.md'))
       end
     end
 
