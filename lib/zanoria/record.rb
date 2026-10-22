@@ -20,14 +20,54 @@ module Zanoria
 
     HEADING_RE = /\A##\s+(.+?)\s*\z/
 
-    attr_reader :sections, :path, :headings, :preamble, :collisions
+    # The facts a parse produced that are not section content.
+    #
+    # One object rather than four constructor arguments. The count was
+    # creeping up — the author's own heading wording, the preamble, the
+    # collisions, and the byte count — and every new fact would have made the
+    # signature longer. A Struct keeps the names checked: a typo is an
+    # error, not a silently ignored keyword.
+    Meta = Struct.new(:headings, :preamble, :collisions, :invalid_bytes, keyword_init: true)
 
-    def initialize(sections = {}, path: nil, headings: {}, preamble: '', collisions: [])
+    attr_reader :sections, :path, :meta
+
+    def initialize(sections = {}, path: nil, meta: Meta.new)
       @sections = sections
-      @headings = headings
       @path = path
-      @preamble = preamble
-      @collisions = collisions
+      @meta = meta
+    end
+
+    # The heading text as the author wrote it, so a note can be rendered back
+    # with their own wording.
+    def headings
+      meta.headings || {}
+    end
+
+    # Whatever was written before the first heading.
+    def preamble
+      meta.preamble.to_s
+    end
+
+    # Headings that normalised onto a section that was already taken.
+    def collisions
+      meta.collisions || []
+    end
+
+    # Bytes the parse had to replace to make the note readable.
+    def invalid_bytes
+      meta.invalid_bytes.to_i
+    end
+
+    # A copy of this record with a different task line.
+    #
+    # Everything else travels with it: the author's heading wording, the
+    # preamble, the collisions, and the byte count. A save rewrites the whole
+    # file, so anything left behind here is content that goes missing.
+    def with_task(task)
+      sections = @sections.dup
+      sections[:task] = task unless task.to_s.empty?
+
+      Record.new(sections, path: path, meta: meta)
     end
 
     def self.parse(text, path: nil)
@@ -36,7 +76,9 @@ module Zanoria
       buffer = []
       preamble = []
 
-      text.to_s.each_line do |line|
+      text, invalid = scrub_bytes(text)
+
+      text.each_line do |line|
         match = HEADING_RE.match(line.chomp)
 
         if match
@@ -54,17 +96,38 @@ module Zanoria
 
       state[:sections][current] = buffer.join.strip if current
 
-      new_from(state, path, preamble.join.strip)
+      new_from(state, path, preamble.join.strip, invalid)
+    end
+
+    # The text with its invalid bytes replaced, and how many there were.
+    #
+    # A byte that is not valid UTF-8 used to raise out of the regex match and
+    # take the whole tool down with a raw backtrace. The project's own rule is
+    # that a malformed note never raises, so the byte is read as the
+    # replacement character and counted. The count is what lets the tool say
+    # that a save wrote the replacement: the note still parses afterwards, and
+    # the section count does not move, so nothing else would report it.
+    def self.scrub_bytes(text)
+      count = 0
+      scrubbed = text.to_s.scrub do |bad|
+        count += bad.bytesize
+        "\uFFFD"
+      end
+
+      [scrubbed, count]
     end
 
     # The record a parse produced.
-    def self.new_from(state, path, preamble)
+    def self.new_from(state, path, preamble, invalid_bytes = 0)
       new(
         state[:sections],
         path: path,
-        headings: state[:headings],
-        preamble: preamble,
-        collisions: state[:collisions]
+        meta: Meta.new(
+          headings: state[:headings],
+          preamble: preamble,
+          collisions: state[:collisions],
+          invalid_bytes: invalid_bytes
+        )
       )
     end
 
@@ -161,7 +224,7 @@ module Zanoria
     # 2026 10 07" both parse to the same key. Only the original can tell them
     # apart, so it is kept rather than reconstructed.
     def heading_for(key)
-      @headings[key]
+      headings[key]
     end
 
     private

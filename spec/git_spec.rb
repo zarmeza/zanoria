@@ -109,6 +109,31 @@ RSpec.describe Zanoria::Git do
     end
   end
 
+  # `git ls-files` resolves a relative pathspec against the working directory,
+  # so an unanchored pathspec finds nothing from a subdirectory. The note lives
+  # at the root of the repository, and the tool is run from wherever the session
+  # happens to be.
+  it 'knows whether a path is tracked from a subdirectory' do
+    in_repo do |dir|
+      commit_all(dir, filename: 'tracked.txt')
+      sub = File.join(dir, 'sub')
+      FileUtils.mkdir_p(sub)
+      File.write(File.join(sub, 'deep.txt'), 'x')
+      git(dir, 'add', '-A')
+      git(dir, 'commit', '--quiet', '-m', 'Sub')
+
+      original = Dir.pwd
+      Dir.chdir(sub)
+      described_class.reset!
+
+      expect(described_class).to be_tracked('tracked.txt')
+      expect(described_class).not_to be_tracked('missing.txt')
+    ensure
+      Dir.chdir(original)
+      described_class.reset!
+    end
+  end
+
   describe '.stage' do
     it 'stages the given paths' do
       in_repo do |dir|

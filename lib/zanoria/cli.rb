@@ -177,13 +177,18 @@ module Zanoria
       prepare!
 
       path = Zanoria::Repo.path
-      existing = Store.read_or_empty(path)
-      task = argv.join(' ').strip
+      result = Save.run(path: path, task: argv.join(' ').strip)
 
-      refuse_to_lose_content(existing)
+      report_saved(path, result)
 
-      Store.write(path, Template.render(rebuild(existing, path, task)))
+      0
+    end
 
+    # What was written, and what is left to do.
+    #
+    # A note that is not committed does not survive a machine swap, and this
+    # is the only place the tool says so.
+    def report_saved(path, result)
       if !Zanoria::Repo.in_repo?
         @out.puts "Wrote #{path} (no git repository here — this note will not"
         @out.puts 'survive a machine swap. Move it into a repo to make it durable.)'
@@ -193,44 +198,20 @@ module Zanoria
         @out.puts "Wrote #{path} (untracked — commit it so the next tool sees it)"
       end
 
-      0
+      report_replaced_bytes(result)
     end
 
-    # The note as it will be written.
+    # Say that bytes were replaced, because they were.
     #
-    # `headings:` has to be carried across, not just `sections`. The record is
-    # rebuilt here to swap in the new task, and without this the author's own
-    # heading wording for any extra section is gone by the time it renders.
-    # The preamble and the collisions come along for the same reason.
-    def rebuild(existing, path, task)
-      sections = existing.sections.dup
-      sections[:task] = task unless task.empty?
+    # The note is the only copy of the content, and a byte that was not valid
+    # UTF-8 is now the replacement character. That is a real change to the
+    # file, and it is the kind that is invisible afterwards: the note still
+    # parses, `status` still counts the same sections, and nothing would
+    # otherwise say that a byte went missing.
+    def report_replaced_bytes(result)
+      return unless result.replaced_bytes.positive?
 
-      Record.new(
-        sections,
-        path: path,
-        headings: existing.headings,
-        preamble: existing.preamble,
-        collisions: existing.collisions
-      )
-    end
-
-    # Refuse to save a note that the save would silently damage.
-    #
-    # The content at risk is the only copy of it. The note is committed, but
-    # a note that quietly lost a block between one save and the next looks
-    # perfectly healthy to `status`: the section is still there, and it still
-    # has text in it.
-    def refuse_to_lose_content(existing)
-      losses = Zanoria::Lint.destructive(existing)
-      return if losses.empty?
-
-      raise Error, <<~MSG
-        refusing to save: #{losses.join('; ')}.
-
-        Nothing was written. Move the content under Decisions, Tried and
-        failed, Next action or Open questions, or delete it, and save again.
-      MSG
+      @out.puts "Replaced #{result.replaced_bytes} byte(s) that were not valid UTF-8."
     end
 
     def load(_argv = [])
@@ -242,7 +223,7 @@ module Zanoria
         return 1
       end
 
-      @out.puts File.read(Zanoria::Repo.path)
+      @out.puts Store.read_text(Zanoria::Repo.path)
       0
     end
 
@@ -293,7 +274,7 @@ module Zanoria
         return 0
       end
 
-      File.delete(path)
+      Store.delete(path)
       @out.puts "Removed #{path}"
       0
     end
