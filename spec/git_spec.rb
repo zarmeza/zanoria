@@ -141,25 +141,54 @@ RSpec.describe Zanoria::Git do
         File.write(File.join(dir, 'note.md'), 'x')
         described_class.reset!
 
-        expect(described_class.stage(['note.md'])).to be(true)
+        result = described_class.stage(['note.md'])
+
+        expect(result.paths).to eq(['note.md'])
+        expect(result.failed).to be_empty
         expect(git(dir, 'diff', '--cached', '--name-only')).to include('note.md')
       end
     end
 
-    it 'returns false when the path does not exist' do
+    # The reason a path did not reach the index is the only thing that tells
+    # the reader what to do about it.
+    it 'says why a path was not staged' do
       in_repo do
         described_class.reset!
 
-        expect(described_class.stage(['missing.md'])).to be(false)
+        result = described_class.stage(['missing.md'])
+
+        expect(result.paths).to be_empty
+        expect(result.failed.first[:path]).to eq('missing.md')
+        expect(result.failed.first[:reason]).to match(/did not match/)
       end
     end
 
-    it 'returns false outside a repository rather than raising' do
+    # `git add` stages the paths it can and still exits 1, so one grouped
+    # call can say that something failed but never which.
+    it 'reports each path on its own' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, 'note.md'), 'x')
+        File.write(File.join(dir, '.gitignore'), "note.md\n")
+        described_class.reset!
+
+        result = described_class.stage(['note.md'])
+
+        expect(result.paths).to be_empty
+        expect(result.failed.first[:path]).to eq('note.md')
+        expect(result.failed.first[:reason]).to match(/ignored/)
+      end
+    end
+
+    it 'returns an empty result outside a repository rather than raising' do
       Dir.mktmpdir do |dir|
         File.write(File.join(dir, 'note.md'), 'x')
         Dir.chdir(dir) do
           described_class.reset!
-          expect(described_class.stage(['note.md'])).to be(false)
+          result = described_class.stage(['note.md'])
+
+          expect(result.paths).to be_empty
+          expect(result.failed).not_to be_empty
         end
       end
     end
@@ -168,7 +197,10 @@ RSpec.describe Zanoria::Git do
       in_repo do
         described_class.reset!
 
-        expect(described_class.stage([])).to be(false)
+        result = described_class.stage([])
+
+        expect(result.paths).to be_empty
+        expect(result.failed).to be_empty
       end
     end
   end
