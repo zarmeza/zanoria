@@ -278,8 +278,11 @@ module Zanoria
 
       @out.puts "task:     #{task.empty? ? '_(not written)_' : task}"
       @out.puts "file:     #{Zanoria::Repo.path}"
-      @out.puts "sections: #{written_summary(record)}"
-      @out.puts "extra:    #{extra_summary(record)}" unless record.extra_sections.empty?
+      @out.puts "sections: #{Zanoria::Status.written_summary(record)}"
+      @out.puts "extra:    #{Zanoria::Status.extra_summary(record)}" unless record.extra_sections.empty?
+
+      unpushed = Zanoria::Status.unpushed(Zanoria::Repo.path)
+      @out.puts unpushed if unpushed
 
       # A count cannot see a note that is wrong. These are the things that are
       # wrong in a way a count cannot: content that a save would delete, a
@@ -287,20 +290,6 @@ module Zanoria
       Zanoria::Lint.anomalies(record).each { |anomaly| @out.puts "warning:  #{anomaly}" }
 
       0
-    end
-
-    # How many sections hold real content, excluding the machine-derived State
-    # section and anything still showing its template prompt.
-    def written_summary(record)
-      human = Record::SECTIONS.keys - [:state]
-      written = human.count { |key| !Record::PROMPT_RE.match?(record[key].to_s.strip) && !record[key].strip.empty? }
-
-      "#{written}/#{human.size} written"
-    end
-
-    # Custom headings, stripped of the "other_" prefix parse adds.
-    def extra_summary(record)
-      record.extra_sections.map { |key| key.to_s.sub(/\Aother_/, '') }.join(', ')
     end
 
     def clear(_argv = [])

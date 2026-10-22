@@ -106,7 +106,7 @@ Upgrade omniauth-facebook
 | `zanoria init [TASK]` | Set a repo up: create the note, wire the instruction file the repo already has, stage both. |
 | `zanoria save [TASK]` | Write or update the note. Preserves sections you already wrote. |
 | `zanoria load` | Print the note. |
-| `zanoria status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. |
+| `zanoria status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. Warns when the note's commits are not pushed. |
 | `zanoria clear` | Delete the note. |
 | `zanoria path` | Print the note's absolute path. |
 
