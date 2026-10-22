@@ -42,7 +42,10 @@ $ gem install zanoria
 ```
 
 **Not on RubyGems yet** — the name is unclaimed, so that command fails today.
-Until it is published, install it from a clone:
+This project is managed locally from the clone; the published gem will arrive
+when the trusted publisher is set up and a tag is pushed.
+
+Install it from the clone (this is the current way to use zanoria):
 
 ```console
 $ git clone https://github.com/zarmeza/zanoria.git
@@ -51,8 +54,13 @@ $ rake install
 ```
 
 The installed gem is a snapshot of a release rather than a link to the
-checkout, so rebuild and reinstall after changing `lib/`. `rake install` does
-both in one step.
+checkout. After updating the clone (`git pull`), reinstall to bring the
+snapshot forward:
+
+```console
+$ git pull
+$ rake install
+```
 
 ## Usage
 

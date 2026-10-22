@@ -85,13 +85,17 @@ $ rake docs:sync                      # README block from Wiring::BLOCK
 ```
 
 The gem is installed locally, so `zanoria` works from any directory. It
-is a snapshot, not a link: after changing `lib/`, rebuild and reinstall
-(`rake install`), or invoke `ruby bin/zanoria` from this checkout to test the
-working copy.
+is a snapshot, not a link: after changing `lib/` or pulling updates
+(`git pull`), rebuild and reinstall (`rake install`), or invoke
+`ruby bin/zanoria` from this checkout to test the working copy.
 
 `bundle exec rake` is the gate: both specs and RuboCop must be clean. Neither
 this file nor the README states an example count; they drifted apart twice
 already, and the suite reports the number.
+
+**Update cycle:** `git pull && rake install` brings the installed snapshot
+forward. The clone is the source of truth; the installed gem is the
+artifact.
 
 ---
 
