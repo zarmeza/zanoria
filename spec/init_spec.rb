@@ -52,6 +52,47 @@ RSpec.describe Zanoria::Init do
     end
   end
 
+  describe 'which instruction files get wired' do
+    # The repository decides. A `CLAUDE.md` that `init` ignores is a file
+    # Claude Code reads in preference to the `AGENTS.md` `init` would create,
+    # so the handoff would be wired into a file nobody opens.
+    it 'wires the instruction file the repository already has' do
+      in_repo do |dir|
+        File.write(File.join(dir, 'CLAUDE.md'), "# Project\n")
+
+        expect(described_class.default_files(root: dir)).to eq(['CLAUDE.md'])
+      end
+    end
+
+    # Claude Code reads `CLAUDE.md` and opencode reads `AGENTS.md`, so a
+    # repository with both needs the block in each of them.
+    it 'wires both when the repository has both' do
+      in_repo do |dir|
+        File.write(File.join(dir, 'AGENTS.md'), "# Agents\n")
+        File.write(File.join(dir, 'CLAUDE.md'), "# Project\n")
+
+        expect(described_class.default_files(root: dir)).to eq(%w[AGENTS.md CLAUDE.md])
+      end
+    end
+
+    it 'falls back to AGENTS.md when the repository has neither' do
+      in_repo do |dir|
+        expect(described_class.default_files(root: dir)).to eq(['AGENTS.md'])
+      end
+    end
+
+    # An instruction file that is not at the repository root is not the one a
+    # tool reads, and `init` resolves these at the root for that reason.
+    it 'ignores instruction files that are not at the repository root' do
+      in_repo do |dir|
+        FileUtils.mkdir_p(File.join(dir, 'docs'))
+        File.write(File.join(dir, 'docs', 'CLAUDE.md'), "# Nested\n")
+
+        expect(described_class.default_files(root: dir)).to eq(['AGENTS.md'])
+      end
+    end
+  end
+
   describe 'git staging' do
     it 'stages the note and the instruction file' do
       in_repo do |dir|
