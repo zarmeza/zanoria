@@ -34,7 +34,7 @@ module Zanoria
     end
 
     def findings(record)
-      state_subheading(record) + repeated_subheading(record) + collisions(record)
+      state_subheading(record) + repeated_subheading(record) + collisions(record) + invalid_bytes(record)
     end
 
     # A subheading inside the machine-derived `State` section.
@@ -79,6 +79,20 @@ module Zanoria
         { message: "the #{names} headings are the same section, and the second was kept at the end of the note",
           destructive: false }
       end
+    end
+
+    # Bytes in the note that are not valid UTF-8.
+    #
+    # The parse replaces them with the replacement character, so the note
+    # reads and the tool works — but a save writes the replacement, and a byte
+    # that quietly changes is the kind of loss this tool exists to prevent.
+    # The note is the only copy of the content, so it is said out loud.
+    def invalid_bytes(record)
+      return [] unless record.invalid_bytes.positive?
+
+      [{ message: "the note holds #{record.invalid_bytes} byte(s) that are not valid UTF-8; " \
+                  'they read as a replacement character, and the next save will write them that way',
+         destructive: false }]
     end
   end
 end

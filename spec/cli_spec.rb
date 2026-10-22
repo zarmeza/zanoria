@@ -257,6 +257,27 @@ RSpec.describe Zanoria::CLI do
         expect(out).to include('machine swap')
       end
     end
+
+    # The note is the only copy of the content. A byte that was not valid
+    # UTF-8 becomes the replacement character when the note is written, and
+    # that is a real change to the file — the kind that is invisible
+    # afterwards, because the note still parses and the section count is
+    # unchanged.
+    it 'says that it replaced a byte that was not valid UTF-8' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        # The byte goes in a section the save keeps. `Task` is replaced by the
+        # argument, so a byte there would never reach the file.
+        File.binwrite(path, "## Task\n\nA task\n\n## Decisions\n\ncaf\xE9 latte\n")
+
+        status, out, = run_cli(['save', 'A task'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to match(/Replaced 1 byte/)
+        expect(File.read(path)).to include("caf\uFFFD latte")
+      end
+    end
   end
 
   describe 'load' do
@@ -279,6 +300,25 @@ RSpec.describe Zanoria::CLI do
 
         expect(status).to eq(1)
         expect(err).to include('Nothing was handed off yet')
+      end
+    end
+
+    # `load` prints the file rather than a parsed record, so it cannot use the
+    # same reader as `status` and `save`. It still has to report an unreadable
+    # note the way they do.
+    it 'reports a note it cannot read, rather than raising' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nA task\n")
+        File.chmod(0o000, path)
+
+        status, _out, err = run_cli(['load'], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('could not read')
+      ensure
+        File.chmod(0o644, path) if path && File.exist?(path)
       end
     end
   end
@@ -328,6 +368,22 @@ RSpec.describe Zanoria::CLI do
         _, out, = run_cli(['status'], dir: dir)
 
         expect(out).to match(/warning:.*State/)
+      end
+    end
+
+    # A stray latin-1 byte from a pasted terminal snippet used to take the
+    # whole tool down with a raw backtrace. The project's own rule is that a
+    # malformed note must never raise.
+    it 'reads a note with a byte that is not valid UTF-8, and says so' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.binwrite(path, "## Task\n\ncaf\xE9 latte\n")
+
+        status, out, = run_cli(['status'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to match(/not valid UTF-8/)
       end
     end
   end
@@ -404,6 +460,23 @@ RSpec.describe Zanoria::CLI do
 
         expect(status).to eq(0)
         expect(out).to include('nothing to clear')
+      end
+    end
+
+    # Deleting needs write permission on the *directory*, not on the note, so
+    # the way to make it fail is to make the directory read-only.
+    it 'reports a note it cannot delete, rather than raising' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, '.carrot.md'), "## Task\n\nA task\n")
+        File.chmod(0o555, dir)
+
+        status, _out, err = run_cli(['clear'], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('could not delete')
+      ensure
+        File.chmod(0o755, dir) if dir && File.directory?(dir)
       end
     end
   end

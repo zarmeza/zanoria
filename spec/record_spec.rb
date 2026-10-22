@@ -83,6 +83,28 @@ RSpec.describe Zanoria::Record do
       expect(described_class.parse(nil).sections).to eq({})
     end
 
+    # The project's own rule: never let a malformed note raise. A stray byte
+    # from a pasted terminal snippet used to raise `ArgumentError` out of the
+    # regex match and take the whole tool down.
+    it 'reads a note with a byte that is not valid UTF-8' do
+      record = described_class.parse("## Task\n\ncaf\xE9 latte\n")
+
+      expect(record.task).to include('caf')
+      expect(record.task).to include('latte')
+    end
+
+    it 'counts the bytes it had to replace' do
+      record = described_class.parse("## Task\n\ncaf\xE9 latte\n")
+
+      expect(record.invalid_bytes).to eq(1)
+    end
+
+    it 'counts nothing when the note is valid UTF-8' do
+      record = described_class.parse("## Task\n\ncafé latte\n")
+
+      expect(record.invalid_bytes).to eq(0)
+    end
+
     it 'treats a record whose sections are all prompts as empty' do
       record = described_class.parse(
         "## Task\n\n_TODO: describe the task_\n\n## Next action\n\n_TODO: describe the next step_\n"

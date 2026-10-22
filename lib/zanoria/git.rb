@@ -60,10 +60,16 @@ module Zanoria
       end
 
       # True when the file is tracked by git.
+      #
+      # The pathspec is anchored at the repository root. `git ls-files` resolves
+      # a relative path against the *working directory*, so a note at the root
+      # of a repository looks untracked when the tool is run from a
+      # subdirectory — and the tool then tells the reader to commit a note that
+      # is already committed.
       def tracked?(path)
         return false unless root
 
-        !capture(['ls-files', '--error-unmatch', path]).nil?
+        !capture(['ls-files', '--error-unmatch', '--', top_pathspec(path)]).nil?
       end
 
       # Stage paths for commit.
@@ -80,6 +86,20 @@ module Zanoria
       end
 
       private
+
+      # The path as a pathspec anchored at the repository root.
+      #
+      # The `:/` magic makes git resolve the rest of the pathspec against the
+      # root of the working tree rather than the current directory, so the
+      # answer does not depend on where the tool was run from. A path outside
+      # the repository is left alone, and git will refuse it as it should.
+      def top_pathspec(path)
+        absolute = File.expand_path(path, root)
+        prefix = root.end_with?(File::SEPARATOR) ? root : "#{root}#{File::SEPARATOR}"
+        return absolute unless absolute.start_with?(prefix)
+
+        ":/#{absolute.delete_prefix(prefix)}"
+      end
 
       # True when git exits zero. Deliberately not `capture`: staging produces no
       # output worth keeping, and reporting failure as `nil` would be
