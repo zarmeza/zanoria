@@ -41,6 +41,18 @@ module GitFixture
     git(dir, 'add', '-A')
     git(dir, 'commit', '--quiet', '-m', message)
   end
+
+  # A bare repository beside the fixture, wired as `origin` and pushed to, so
+  # questions about an upstream have a real answer. `push -u` is what creates
+  # the tracking branch; without it `@{u}` fails and every reader returns nil.
+  def with_remote(dir)
+    Dir.mktmpdir('carrot-remote') do |remote|
+      git(remote, 'init', '--bare')
+      git(dir, 'remote', 'add', 'origin', remote)
+      git(dir, 'push', '--quiet', '-u', 'origin', 'HEAD')
+      yield remote
+    end
+  end
 end
 
 RSpec.configure do |config|

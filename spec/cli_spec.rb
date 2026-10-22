@@ -436,6 +436,45 @@ RSpec.describe Zanoria::CLI do
       end
     end
 
+    # A commit keeps the note in this clone; a push is what makes it survive a
+    # machine swap. The tool said "commit it" everywhere and never mentioned
+    # that the note was still only local.
+    it 'says when the note is committed but not pushed' do
+      in_repo do |dir|
+        commit_all(dir, filename: '.carrot.md', body: "## Task\n\nA.\n")
+
+        with_remote(dir) do
+          commit_all(dir, message: 'Second', filename: '.carrot.md', body: "## Task\n\nB.\n")
+
+          _, out, = run_cli(['status'], dir: dir)
+
+          expect(out).to include('unpushed: 1 note commit(s) ahead of origin/')
+        end
+      end
+    end
+
+    it 'says nothing about pushing when there is no upstream' do
+      in_repo do |dir|
+        commit_all(dir, filename: '.carrot.md', body: "## Task\n\nA.\n")
+
+        _, out, = run_cli(['status'], dir: dir)
+
+        expect(out).not_to include('unpushed')
+      end
+    end
+
+    it 'says nothing about pushing when the note is already pushed' do
+      in_repo do |dir|
+        commit_all(dir, filename: '.carrot.md', body: "## Task\n\nA.\n")
+
+        with_remote(dir) do
+          _, out, = run_cli(['status'], dir: dir)
+
+          expect(out).not_to include('unpushed')
+        end
+      end
+    end
+
     it 'reports when nothing has been handed off' do
       in_repo do |dir|
         commit_all(dir)
