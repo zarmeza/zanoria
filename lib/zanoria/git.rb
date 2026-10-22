@@ -66,6 +66,24 @@ module Zanoria
         (capture(%w[log -n] + [limit.to_s, '--format=%h %s']) || '').lines.map(&:strip)
       end
 
+      # The branch this one tracks, e.g. "origin/main", or nil when it has none.
+      def upstream
+        capture(%w[rev-parse --abbrev-ref --symbolic-full-name @{u}])
+      end
+
+      # How many commits touching `path` are on this branch but not on its
+      # upstream, or nil when there is no upstream to compare with.
+      #
+      # nil rather than 0 on purpose: "no remote" and "everything is pushed"
+      # are different facts, and a caller that prints a warning for the first
+      # is telling the reader about a problem that does not exist.
+      def commits_ahead_of_upstream(path)
+        return nil unless root
+
+        count = capture(['rev-list', '--count', '@{u}..HEAD', '--', top_pathspec(path)])
+        count&.to_i
+      end
+
       # True when the file is tracked by git.
       #
       # The pathspec is anchored at the repository root. `git ls-files` resolves
