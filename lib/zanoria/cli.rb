@@ -26,6 +26,10 @@ module Zanoria
       --file PATH picks the files explicitly instead. It never overwrites an
       existing note.
 
+      #{NAME} save refuses to replace a Task section that holds more than the
+      line being written. --replace-task allows it:
+      #{NAME} save --replace-task "the new task".
+
       In an agent session, start with `#{NAME} load` before working on anything
       a previous session left behind.
     TEXT
@@ -197,11 +201,25 @@ module Zanoria
       prepare!
 
       path = Zanoria::Repo.path
-      result = Save.run(path: path, task: argv.join(' ').strip)
+      task, replace_task = split_save_args(argv)
+      result = Save.run(path: path, task: task, replace_task: replace_task)
 
       report_saved(path, result)
 
       0
+    end
+
+    # Pull `--replace-task` out of argv, leaving the task line as one string.
+    #
+    # A task is often several words, so everything else is joined rather than
+    # treated as flags. The flag exists because replacing a `Task` that holds
+    # more than its first paragraph is the one save that removes text, and it
+    # should be asked for rather than inferred.
+    def split_save_args(argv)
+      args = argv.dup
+      replace_task = !args.delete('--replace-task').nil?
+
+      [args.join(' ').strip, replace_task]
     end
 
     # What was written, and what is left to do.
