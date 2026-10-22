@@ -135,6 +135,18 @@ but the note, so a reworded task in `init` is applied only on creation. The
 `TASK` argument of `init` is therefore ignored when a note is already present,
 and there is a spec asserting the file is byte-identical afterwards.
 
+**Which instruction file gets wired is the repository's decision, not the tool's.**
+`Init.default_files` looks at the repository root: the `AGENTS.md` and
+`CLAUDE.md` that are already there are the ones it wires, and `AGENTS.md` is
+created only when the repository has neither. The reason is that the tools
+disagree about which file they read — Claude Code prefers `CLAUDE.md` over
+`AGENTS.md`, and opencode prefers `AGENTS.md` over `CLAUDE.md` — so a fixed
+default wires the block into a file nobody opens, and the handoff is silently
+undelivered. A repository with both is wired in both, one block per file, and
+the block is marked, so `init` replaces each copy in place instead of stacking
+it. `CANDIDATE_FILES` is the list of names to detect; `--file` bypasses the
+detection entirely and names the files itself.
+
 **Marked blocks are replaced in place, never appended to.** `Wiring::BLOCK_RE`
 deliberately consumes the newline after the end marker. Without that trailing
 `[ \t]*\r?\n?`, the newline survives every substitution and the file grows by one

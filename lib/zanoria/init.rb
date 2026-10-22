@@ -12,7 +12,18 @@ module Zanoria
   # Lives outside `CLI` because the orchestration is long enough to matter on its
   # own and is worth testing without going through argument dispatch.
   module Init
-    DEFAULT_FILES = ['AGENTS.md'].freeze
+    # The instruction files a repository may already have, and therefore the
+    # ones worth wiring.
+    #
+    # `AGENTS.md` comes first because it is the name the most tools read:
+    # Codex, opencode, and Claude Code itself when the repository has no
+    # `CLAUDE.md`. `CLAUDE.md` is here because Claude Code reads it in
+    # preference to an `AGENTS.md`, so in a repository that uses that name it
+    # is the file the instructions have to reach.
+    CANDIDATE_FILES = %w[AGENTS.md CLAUDE.md].freeze
+
+    # What gets created when the repository has neither.
+    FALLBACK_FILES = ['AGENTS.md'].freeze
 
     Result = Struct.new(:note, :note_created, :wired, :staged_paths, :failures, :outside, keyword_init: true) do
       def note_created?
@@ -51,6 +62,29 @@ module Zanoria
     end
 
     module_function
+
+    # The instruction files to wire when the caller named none.
+    #
+    # The repository decides, not the tool. Claude Code reads `CLAUDE.md` in
+    # preference to an `AGENTS.md`, so wiring an `AGENTS.md` into a repository
+    # that has a `CLAUDE.md` leaves the handoff in a file nobody reads — the
+    # note is created and the instructions never arrive. Wiring the files the
+    # repository already has puts the block where that repository's agent
+    # looks for it.
+    #
+    # A repository with both is wired in both, on purpose: Claude Code reads
+    # `CLAUDE.md` and opencode reads `AGENTS.md`, and each tool needs the
+    # block in the file it reads. The block is marked and idempotent, so the
+    # two copies are replaced in place rather than stacked.
+    #
+    # With neither file present, `AGENTS.md` is created: it is the name the
+    # most tools read, and a repository with no instruction file yet is a
+    # repository that has not chosen one.
+    def default_files(root: Zanoria::Repo.root)
+      existing = CANDIDATE_FILES.select { |name| File.exist?(File.join(root, name)) }
+
+      existing.empty? ? FALLBACK_FILES : existing
+    end
 
     # Wire `files`, create the note if the repository has none, and stage
     # whatever landed inside the repository.

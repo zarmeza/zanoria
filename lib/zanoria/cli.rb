@@ -21,8 +21,10 @@ module Zanoria
         #{NAME} path           print the note's absolute path
         #{NAME} help           this message
 
-      #{NAME} init accepts repeatable --file PATH (default: AGENTS.md) to wire a
-      different agent instruction file. It never overwrites an existing note.
+      #{NAME} init wires the instruction files the repository already has
+      (AGENTS.md, CLAUDE.md), and creates AGENTS.md when it has none. Repeatable
+      --file PATH picks the files explicitly instead. It never overwrites an
+      existing note.
 
       In an agent session, start with `#{NAME} load` before working on anything
       a previous session left behind.
@@ -85,8 +87,13 @@ module Zanoria
 
     # Instruction files live at the repo root, resolved there rather than against
     # the cwd so `init` works from a subdirectory.
+    #
+    # Which files those are is the repository's call: the ones it already
+    # has, or `AGENTS.md` when it has none.
     def default_files
-      Init::DEFAULT_FILES.map { |name| File.join(Zanoria::Repo.root, name) }
+      root = Zanoria::Repo.root
+
+      Init.default_files(root: root).map { |name| File.join(root, name) }
     end
 
     # Pull `--file` flags out of argv, leaving the positional words as the task.
