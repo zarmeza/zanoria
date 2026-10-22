@@ -93,6 +93,34 @@ RSpec.describe Zanoria::CLI do
       end
     end
 
+    # The promise the tool makes about durability has to be true. A path git
+    # refused is not staged, and the reason it gave is the only thing that
+    # tells the reader what to do about it.
+    it 'says a note it could not stage was not staged' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, '.gitignore'), ".carrot.md\n")
+
+        _status, out, = run_cli(['init'], dir: dir)
+
+        expect(out).to include('Could not stage .carrot.md')
+        expect(out).to match(/Could not stage \.carrot\.md: .+ignored/)
+        expect(out).to include('Staged AGENTS.md')
+        expect(out).not_to include('Staged .carrot.md')
+      end
+    end
+
+    # The suggested commit names what was actually staged, so it cannot name
+    # a file that is not in the index.
+    it 'names the files it staged in the commit command' do
+      in_repo do |dir|
+        commit_all(dir)
+        _status, out, = run_cli(['init'], dir: dir)
+
+        expect(out).to include('git commit -m "chore: add AGENTS.md .carrot.md"')
+      end
+    end
+
     it 'accepts --file with a separate path or an equals sign' do
       in_repo do |dir|
         commit_all(dir)

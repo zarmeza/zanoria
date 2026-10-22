@@ -165,12 +165,25 @@ module Zanoria
       outside = result.outside_relative(root)
 
       @out.puts "Staged #{staged.join(' ')}" unless staged.empty?
+      report_staging_failures(result, root)
       @out.puts "Left unstaged (outside the repo): #{outside.join(' ')}" unless outside.empty?
 
       return if staged.empty?
 
       @out.puts 'Commit it so the next tool sees it:'
-      @out.puts %(  git commit -m "chore: add #{Zanoria::FILENAME}")
+      @out.puts %(  git commit -m "chore: add #{staged.join(' ')}")
+    end
+
+    # Say what could not be staged, and why.
+    #
+    # A path git refused is not staged. Reporting it as staged would be the
+    # one promise this tool makes about durability, told falsely — and the
+    # reason git gave is the only thing that tells the reader what to do
+    # about it.
+    def report_staging_failures(result, root)
+      result.failures_relative(root).each do |failure|
+        @out.puts "Could not stage #{failure[:path]}: #{failure[:reason]}"
+      end
     end
 
     def save(argv)

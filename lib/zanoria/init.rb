@@ -14,7 +14,7 @@ module Zanoria
   module Init
     DEFAULT_FILES = ['AGENTS.md'].freeze
 
-    Result = Struct.new(:note, :note_created, :wired, :staged_paths, :outside, keyword_init: true) do
+    Result = Struct.new(:note, :note_created, :wired, :staged_paths, :failures, :outside, keyword_init: true) do
       def note_created?
         note_created
       end
@@ -31,6 +31,11 @@ module Zanoria
       # `git commit` line and how the person typing it would write them.
       def staged_relative(root)
         staged_paths.map { |path| relative(path, root) }
+      end
+
+      # The paths git refused, and why, relative to the repo root.
+      def failures_relative(root)
+        failures.map { |failure| failure.merge(path: relative(failure[:path], root)) }
       end
 
       def outside_relative(root)
@@ -52,17 +57,29 @@ module Zanoria
     def run(files:, task: nil)
       note, created = create_note(task)
       wired = files.map { |path| Wiring.apply(path) }
-      inside, outside = split_by_repo(wired.map(&:path) + [note])
 
-      Git.stage(inside) unless inside.empty?
+      inside, outside = split_by_repo(wired.map(&:path) + [note])
+      staged = stage_inside(inside)
 
       Result.new(
         note: note,
         note_created: created,
         wired: wired,
-        staged_paths: inside,
+        staged_paths: staged.paths,
+        failures: staged.failed,
         outside: outside
       )
+    end
+
+    # Stage what is inside the repository, when there is one.
+    #
+    # Outside a repository there is nothing to stage into, and `git add`
+    # would fail with a message about there being no repository — noise
+    # about a situation the CLI already reports in its own words.
+    def stage_inside(paths)
+      return Git::Staged.new(paths: [], failed: []) if paths.empty? || !Zanoria::Repo.in_repo?
+
+      Git.stage(paths)
     end
 
     # Write the note, but only when there is not one already.

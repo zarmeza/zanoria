@@ -95,6 +95,39 @@ RSpec.describe Zanoria::Init do
         expect(Dir.children(dir)).to contain_exactly('.carrot.md', 'AGENTS.md')
       end
     end
+
+    # `init` used to stage the instruction file even when only the note
+    # changed. `git add` on an unchanged file is a no-op, and reporting it as
+    # staged claimed the tool had done something it had not.
+    it 'stages only what changed' do
+      in_repo do |dir|
+        run_init
+        git(dir, 'add', '-A')
+        git(dir, 'commit', '--quiet', '-m', 'Wired')
+        File.delete(File.join(dir, '.carrot.md'))
+
+        result = run_init
+
+        expect(result.staged_relative(File.realpath(dir))).to eq(['.carrot.md'])
+      end
+    end
+
+    # `git add` stages the paths it can and still exits 1, so one grouped
+    # call can say that something failed but never which. The note is the
+    # path that matters most: it is the only copy of the handoff.
+    it 'stages the paths it can and says which it could not' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, '.gitignore'), ".carrot.md\n")
+
+        result = run_init
+
+        expect(result.staged_relative(File.realpath(dir))).to eq(['AGENTS.md'])
+        expect(result.failures.map { |failure| failure[:path] }).to eq([File.join(dir, '.carrot.md')])
+        expect(result.failures.first[:reason]).to match(/ignored/)
+        expect(git(dir, 'diff', '--cached', '--name-only').lines.map(&:strip)).to eq(['AGENTS.md'])
+      end
+    end
   end
 
   describe 'reporting' do
