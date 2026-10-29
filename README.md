@@ -194,18 +194,28 @@ The note is `.carrot.md`, committed to this repository.
 
 Before starting work here, run `zanoria load`. If a note exists it
 describes work already in progress: read it, follow its `Next action`, and
-do not re-derive what its `Decisions` section already settled.
+do not re-derive what its `Decisions` section already settled. Read
+`Decisions` before reporting anything as pending or wrong — if something
+looks like a mistake, its intent is usually recorded there or in `git log`.
 
-Before you finish, run `zanoria save "<one-line task>"` and then
-fill in `Tried and failed` and `Decisions` by hand. The tool can record the
-git state; it cannot know what you tried.
+Before you finish, run `zanoria save` with no task and then fill in
+`Tried and failed` and `Decisions` by hand. `zanoria save "<task>"`
+replaces the `Task` line, and refuses when that would drop text below it;
+`--replace-task` is the override. The tool records the git state; it
+cannot know what you tried.
+
+`Open questions` holds only what nobody has decided yet. Once something is
+decided — including decided not to — it belongs in `Decisions`, even if it
+is kept as a reminder.
 
 Two things to leave alone. `State` is machine-derived and regenerates on
 every save, so edits to it are lost. And do not add a `##` heading of your
-own: only the six canonical headings round-trip in place, so dated or
-thematic context belongs under a `###` inside an existing section.
+own: extra sections survive, but they are written back after the six
+canonical ones, so dated or thematic context belongs under a `###` inside
+an existing section, where it keeps its place.
 
-Commit the note. An uncommitted note does not survive a context reset.
+Commit and push the note. An uncommitted note does not survive a context
+reset, and an unpushed one does not survive a machine swap.
 <!-- carrot-handoff:end -->
 <!-- block:end -->
 ```
@@ -219,8 +229,9 @@ above is generated from `Wiring::BLOCK` by `rake docs:sync`, and a spec asserts
 the two match, so edit the constant and run the task rather than editing this
 copy.
 
-Commit the note. That is what makes it survive a context reset and a machine
-swap.
+Commit and push the note. A commit survives a context reset; only a push
+survives a machine swap. `status` says when the note's commits have not left
+this machine.
 
 ### Outside a git repository
 
