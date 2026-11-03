@@ -183,5 +183,31 @@ RSpec.describe Zanoria::Wiring do
       expect(described_class::BLOCK).to include('do not add a `##` heading')
       expect(described_class::BLOCK).to include('`###`')
     end
+
+    # The block used to say only the six canonical headings round-trip. They
+    # stopped being the only ones when extra sections started rendering, and
+    # the false reason sat in every wired repository until #10.
+    it 'does not claim that only canonical headings round-trip' do
+      expect(described_class::BLOCK).not_to include('only the six canonical headings')
+    end
+
+    # The old text told agents to run `save "<task>"` every round, which
+    # replaced the whole Task section (#20).
+    it 'tells an agent to save without a task on an existing note' do
+      expect(described_class::BLOCK).to include('run `zanoria save` with no task')
+    end
+
+    # A decided item under `Open questions` reads as pending to the next agent,
+    # which is the failure #9 records.
+    it 'says a decided question belongs in Decisions' do
+      expect(described_class::BLOCK).to include('holds only what nobody has decided')
+      expect(described_class::BLOCK).to include('it belongs in `Decisions`')
+    end
+
+    # A commit keeps the note in this clone; the machine-swap claim needs a
+    # push, and `status` reports when there has not been one (#12).
+    it 'asks for a push, not only a commit' do
+      expect(described_class::BLOCK).to include('Commit and push the note')
+    end
   end
 end

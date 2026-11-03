@@ -32,8 +32,13 @@ If a note exists, it describes work already in progress. Follow its
 Before finishing:
 
 ```console
-$ bin/zanoria save "<one-line task>"
+$ bin/zanoria save
 ```
+
+Pass a task (`bin/zanoria save "<one-line task>"`) only when the task line
+itself changed: it replaces the first paragraph of `Task`, and refuses when
+that would drop text below it. `--replace-task` overrides the refusal, and is
+the only way to mean it.
 
 Then fill in, by hand, the sections only a human or agent can know:
 
@@ -42,10 +47,12 @@ Then fill in, by hand, the sections only a human or agent can know:
   section.** Two agents handed the same task will retry the same dead end
   unless somebody records it. This information exists nowhere else.
 - `Next action` — the single next step, specific enough to start cold.
-- `Open questions` — anything unverified or blocked.
+- `Open questions` — anything unverified or blocked, and only that. Once
+  something is decided — including decided not to — it moves to `Decisions`.
 
-Commit the note. That is what makes it survive a context reset or a machine
-swap. `State` is machine-derived and regenerates on every save; do not edit it.
+Commit and push the note. A commit survives a context reset; only a push
+survives a machine swap. `State` is machine-derived and regenerates on every
+save; do not edit it.
 
 Save after every real decision rather than only at the end, when work spans
 more than one session. An outage costs minutes if the note is already written
