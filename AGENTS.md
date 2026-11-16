@@ -257,3 +257,31 @@ add new exclusions without a comment explaining why.
 4. Add parse coverage in `spec/record_spec.rb`.
 
 Order in `SECTIONS` is both display and write order.
+
+---
+
+## 8. The written contract
+
+`openspec/specs/<capability>/spec.md` is what the tool promises, one file per
+capability: `note-format`, `cli-surface`, `handoff-init`, `handoff-save`,
+`handoff-read`, `agent-wiring`, `git-state`, `release`. The baseline was captured
+from the behaviour shipped through `fc326d9`; it describes what exists, not what
+is planned.
+
+A behaviour change starts as an OpenSpec change, not as an edit to the main
+specs:
+
+```console
+$ openspec new change <name>
+$ openspec validate <name> --strict
+$ openspec archive <name> --yes
+$ openspec validate --specs --strict
+```
+
+The change carries delta specs under `openspec/changes/<name>/specs/`, and
+`archive` merges them into `openspec/specs/`. A change that alters no externally
+visible behaviour sets `skip_specs: true` in its `.openspec.yaml` instead of
+inventing a requirement.
+
+Specs name commands, files and observable results — not classes or methods.
+§6 is still the place for implementation rules.
