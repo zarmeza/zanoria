@@ -21,6 +21,17 @@ module Zanoria
     # match cannot fire on anything the tool wrote.
     SUBHEADING_RE = /\A\#{3,}\s+/
 
+    # The start of an item that has been decided.
+    #
+    # Anchored on purpose. "no longer" and "on purpose" are ordinary English
+    # inside a question that is still open, and a warning that fires on those
+    # is a warning that gets switched off. The colon or dash after `Resolved`
+    # is what distinguishes the label from the prose.
+    SETTLED_RE = /\A(?:resolved\s*[:—–-]|addressed\s+in\b|decided\s*:|settled\s*:|deliberate\b|on\s+purpose\b)/i
+
+    # The list marker and opening emphasis a bullet may carry before its text.
+    ITEM_PREFIX_RE = /\A(?:[-*+]|\d+\.)\s+(?:\*\*|__|\*|_)?\s*/
+
     module_function
 
     # Every problem found in `record`, as human-readable lines.
@@ -34,7 +45,8 @@ module Zanoria
     end
 
     def findings(record)
-      state_subheading(record) + repeated_subheading(record) + collisions(record) + invalid_bytes(record)
+      state_subheading(record) + repeated_subheading(record) + collisions(record) + invalid_bytes(record) +
+        settled_questions(record)
     end
 
     # A subheading inside the machine-derived `State` section.
@@ -93,6 +105,33 @@ module Zanoria
       [{ message: "the note holds #{record.invalid_bytes} byte(s) that are not valid UTF-8; " \
                   'they read as a replacement character, and the next save will write them that way',
          destructive: false }]
+    end
+
+    # Decided items still sitting under `Open questions`.
+    #
+    # The convention says decided items move to `Decisions`, including
+    # "decided not to", and nothing checks. The match is anchored to the start
+    # of the item: "no longer" and "on purpose" are ordinary English inside a
+    # question that is still open, and a warning that fires on those is a
+    # warning that gets switched off.
+    def settled_questions(record)
+      record[:open_questions].to_s.lines.filter_map do |line|
+        item = line.strip
+        next unless settled?(item.sub(ITEM_PREFIX_RE, ''))
+
+        { message: "the Open questions item #{preview(item)} looks settled; move it to Decisions",
+          destructive: false }
+      end
+    end
+
+    def settled?(item)
+      item.start_with?('~~') || SETTLED_RE.match?(item)
+    end
+
+    # Enough of the item to recognise it, on one line.
+    def preview(item)
+      text = item.gsub(/\s+/, ' ').strip
+      text.length > 72 ? "#{text[0, 69]}..." : text
     end
   end
 end

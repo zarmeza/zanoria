@@ -15,6 +15,14 @@ RSpec.describe Zanoria::Lint do
     Zanoria::Record.parse("## Task\n\nA.\n\n## Decisions\n\n### Round one\n\nX.\n\n### Round one\n\nY.\n")
   end
 
+  # A decided item that never moved to Decisions. The convention is in the
+  # wiring block, and nothing checks it.
+  let(:settled_question) do
+    Zanoria::Record.parse(
+      "## Task\n\nA.\n\n## Open questions\n\n- **Resolved:** publishing is paused\n- Where do archives go?\n"
+    )
+  end
+
   describe '.anomalies' do
     it 'finds nothing wrong with a note that is fine' do
       record = Zanoria::Record.parse("## Task\n\nA.\n\n## State\n\n- Branch: `main`\n\n## Decisions\n\nD.\n")
@@ -44,6 +52,34 @@ RSpec.describe Zanoria::Lint do
       expect(described_class.anomalies(record)).to be_empty
     end
 
+    it 'finds a settled item under Open questions' do
+      expect(described_class.anomalies(settled_question)).to include(
+        a_string_matching(/Resolved.*move it to Decisions/)
+      )
+    end
+
+    # Struck through is the other way people mark an item done without moving
+    # it. The item is still under the heading, so a reader still counts it.
+    it 'finds a struck-through item under Open questions' do
+      record = Zanoria::Record.parse("## Task\n\nA.\n\n## Open questions\n\n- ~~Where do archives go?~~\n")
+
+      expect(described_class.anomalies(record)).to include(a_string_matching(/settled/))
+    end
+
+    # "no longer" and "on purpose" are ordinary English inside a question that
+    # is genuinely open. Matching them anywhere would fire on this every time.
+    it 'does not fire on a settled phrase inside a question' do
+      record = Zanoria::Record.parse("## Task\n\nA.\n\n## Open questions\n\n- Do I no longer need the retry wrapper?\n")
+
+      expect(described_class.anomalies(record)).to be_empty
+    end
+
+    it 'does not scan Decisions for settled items' do
+      record = Zanoria::Record.parse("## Task\n\nA.\n\n## Decisions\n\n- **Resolved:** publishing is paused\n")
+
+      expect(described_class.anomalies(record)).to be_empty
+    end
+
     it 'does not mistake a commit subject for a subheading' do
       record = Zanoria::Record.parse("## State\n\n- Branch: `main`\n\nRecent commits:\n- `abc1234 fix ###123`\n")
 
@@ -64,6 +100,10 @@ RSpec.describe Zanoria::Lint do
       record = Zanoria::Record.parse("## Task\n\nFirst.\n\n## TASK\n\nSecond.\n")
 
       expect(described_class.destructive(record)).to be_empty
+    end
+
+    it 'does not count a settled question as destructive' do
+      expect(described_class.destructive(settled_question)).to be_empty
     end
   end
 end

@@ -508,6 +508,18 @@ RSpec.describe Zanoria::CLI do
       end
     end
 
+    it 'warns about a settled item under Open questions' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nA.\n\n## Open questions\n\n- **Resolved:** publishing is paused\n")
+
+        _, out, = run_cli(['status'], dir: dir)
+
+        expect(out).to match(/warning:.*settled.*Decisions/)
+      end
+    end
+
     # A stray latin-1 byte from a pasted terminal snippet used to take the
     # whole tool down with a raw backtrace. The project's own rule is that a
     # malformed note must never raise.
