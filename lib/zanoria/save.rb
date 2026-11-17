@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'date'
+
 module Zanoria
   # Writing the note.
   #
@@ -27,16 +29,30 @@ module Zanoria
     # Raises `Zanoria::Error` when the save would destroy content. Nothing is
     # written in that case, and the note on disk is left byte for byte as it
     # was.
-    def run(path:, task:, replace_task: false)
+    def run(path:, task:, replace_task: false, today: Date.today)
       existing = Store.read_or_empty(path)
       refuse_to_lose_content(existing)
 
-      updated = existing.with_task(task)
+      updated = existing.with_task(task).with_started_at(started_for(existing, replace_task, today))
       refuse_to_drop_text(existing, updated, replace_task: replace_task)
 
       Store.write(path, Template.render(updated))
 
       Result.new(path: path, replaced_bytes: existing.invalid_bytes)
+    end
+
+    # The start the saved note should carry.
+    #
+    # A note written before this existed has no start; the first save records
+    # one, and every later save preserves it. Only `--replace-task` — the flag
+    # that already means "this task is being replaced on purpose" — begins a new
+    # round. Rewording a task is ordinary `save`, so it keeps the boundary and
+    # cannot archive the round it is still working on.
+    def started_for(record, replace_task, today)
+      return today.iso8601 if replace_task
+      return record.started_at unless record.started_at.to_s.empty?
+
+      today.iso8601
     end
 
     # Refuse to save a note that the save would silently damage.

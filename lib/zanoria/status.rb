@@ -8,7 +8,42 @@ module Zanoria
   # method per feature is a class nobody reads. These three are also the part of
   # the summary worth testing without a stream.
   module Status
+    # Past this the note stops being a handoff and becomes an archive nobody
+    # scrolls through. 32 KiB is a few hundred lines of prose — more than a
+    # round needs, small enough that the warning still means something.
+    SIZE_LIMIT = 32 * 1024
+
     module_function
+
+    # Everything `status` prints, as one block of text.
+    #
+    # Kept here rather than in the command class so the summary can grow
+    # without the dispatcher growing with it. `status` is the command people
+    # read most often, so every new fact lands here.
+    def report(record, path:)
+      task = record.task.strip.lines.first.to_s.strip
+      lines = [
+        "task:     #{task.empty? ? '_(not written)_' : task}",
+        "file:     #{path}",
+        "sections: #{written_summary(record)}"
+      ]
+
+      extra = extra_summary(record)
+      lines << "extra:    #{extra}" unless extra.empty?
+
+      unpushed_line = unpushed(path)
+      lines << unpushed_line if unpushed_line
+
+      # A count cannot see a note that is wrong. These are the things that are
+      # wrong in a way a count cannot: content that a save would delete, a
+      # heading left behind twice, two headings that are the same section.
+      Lint.anomalies(record).each { |anomaly| lines << "warning:  #{anomaly}" }
+
+      large = size_warning(path)
+      lines << "warning:  #{large}" if large
+
+      lines.join("\n")
+    end
 
     # How many of the human sections hold real content.
     #
@@ -42,6 +77,18 @@ module Zanoria
     def authored?(text)
       stripped = text.to_s.strip
       !stripped.empty? && !Record::PROMPT_RE.match?(stripped)
+    end
+
+    # The note's size, when it has grown past a comfortable read.
+    #
+    # The warning always comes with a remedy. A warning that only says "this
+    # file is large" is a warning people learn to ignore; naming the command
+    # that fixes it is what makes it actionable.
+    def size_warning(path)
+      size = File.size(path)
+      return unless size > SIZE_LIMIT
+
+      "the note is #{size} bytes; `zanoria archive` moves earlier rounds to #{Archive::FILENAME}"
     end
   end
 end

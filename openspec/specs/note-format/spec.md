@@ -67,7 +67,7 @@ An unwritten human section SHALL hold a `_TODO:` prompt, and a section still hol
 - **THEN** the second run leaves the note byte-identical to the first
 
 ### Requirement: State is machine-derived
-The State section SHALL be rebuilt from repository facts on every render and SHALL NOT preserve authored text. It SHALL report the branch and HEAD, uncommitted paths with a cap of twenty plus a remainder count, the five most recent commits, and SHALL say when the repository has no commits or none was found.
+The State section SHALL be rebuilt from repository facts on every render and SHALL NOT preserve authored text. It SHALL report the branch and HEAD, uncommitted paths with a cap of twenty plus a remainder count, the five most recent commits, SHALL name `.carrot-archive.md` when that file exists beside the note, and SHALL say when the repository has no commits or none was found.
 
 #### Scenario: Uncommitted work is reported
 - **WHEN** the worktree has uncommitted files and a note is rendered
@@ -81,6 +81,10 @@ The State section SHALL be rebuilt from repository facts on every render and SHA
 - **WHEN** State holds a `###` block and the note is read with `status`
 - **THEN** `status` warns that the next save will delete it
 
+#### Scenario: The archive is named
+- **WHEN** `.carrot-archive.md` exists beside the note and the note is rendered
+- **THEN** State names `.carrot-archive.md`
+
 ### Requirement: Invalid UTF-8 is read as replacement
 Text that is not valid UTF-8 SHALL be read as U+FFFD without raising, and the parse SHALL count the bytes replaced so that a later save can report how many were changed.
 
@@ -91,3 +95,18 @@ Text that is not valid UTF-8 SHALL be read as U+FFFD without raising, and the pa
 #### Scenario: Parsing does not raise
 - **WHEN** a note holds an invalid byte
 - **THEN** `load` prints the note and exits 0 rather than failing with a backtrace
+
+### Requirement: Task records when the round started
+The Task section SHALL carry the round's start as a machine-written `_Started: YYYY-MM-DD_` line. Parsing SHALL expose the date as metadata rather than task text, and SHALL NOT count the line as a paragraph. A note without the line SHALL parse normally, and a `_Started:_` line that does not hold a date SHALL stay in the task text so a save cannot delete it.
+
+#### Scenario: The start is read as metadata
+- **WHEN** a Task section holds `Ship #8.` followed by `_Started: 2026-11-17_`
+- **THEN** the task text is `Ship #8.` and the start date is `2026-11-17`
+
+#### Scenario: A note without a start parses
+- **WHEN** a note has no `_Started:_` line
+- **THEN** it parses normally and the start date is absent
+
+#### Scenario: A malformed start is not discarded
+- **WHEN** the Task holds `_Started: soon_`
+- **THEN** the line stays in the task text

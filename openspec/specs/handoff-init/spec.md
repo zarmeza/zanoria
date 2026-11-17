@@ -57,3 +57,14 @@ agent instruction files, and stage what landed inside the repository.
 #### Scenario: A refused path is reported
 - **WHEN** git refuses to stage a wired path
 - **THEN** the output names the path and git's reason, and the suggested commit does not name it
+
+### Requirement: init records the round start
+When `init` creates the note it SHALL write `_Started:` with the creation date, including when TASK is supplied. On an existing note it SHALL NOT add or change the line.
+
+#### Scenario: A new note carries the date
+- **WHEN** `init` creates a note
+- **THEN** the note's Task section holds today's `_Started:` date
+
+#### Scenario: Re-running init leaves it alone
+- **WHEN** `init` runs on a note that already exists
+- **THEN** the `_Started:` line is byte-identical afterwards

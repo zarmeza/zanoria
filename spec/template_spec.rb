@@ -33,6 +33,31 @@ RSpec.describe Zanoria::Template do
     expect(output).to include('_TODO:')
   end
 
+  describe 'the round start' do
+    it 'renders it under the task text' do
+      record = Zanoria::Record.parse("## Task\n\nShip #8.\n\n_Started: 2026-11-17_\n")
+
+      output = described_class.render(record)
+
+      expect(output).to include("## Task\n\nShip #8.\n\n_Started: 2026-11-17_\n")
+    end
+
+    it 'round trips the date and the task text' do
+      record = Zanoria::Record.parse("## Task\n\nShip #8.\n\n_Started: 2026-11-17_\n")
+
+      reparsed = Zanoria::Record.parse(described_class.render(record))
+
+      expect(reparsed.task).to eq('Ship #8.')
+      expect(reparsed.started_at).to eq('2026-11-17')
+    end
+
+    it 'renders nothing when the note has no start' do
+      record = Zanoria::Record.parse("## Task\n\nShip #8.\n")
+
+      expect(described_class.render(record)).not_to include('_Started:')
+    end
+  end
+
   it 'fills State from git instead of prompting for it' do
     allow(Zanoria::Git).to receive_messages(
       branch: 'main', head: 'abc1234', dirty_files: [], recent_commits: []
@@ -188,6 +213,27 @@ RSpec.describe Zanoria::Template do
         state = described_class.observed_state
         expect(state).to include('Uncommitted: 25 file(s)')
         expect(state).to include('_…and 5 more_')
+      end
+    end
+
+    # `load` prints the note verbatim, so a reader only finds the archive if
+    # the note says it exists.
+    it 'names the archive when one exists beside the note' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, '.carrot-archive.md'), "# Archived rounds\n")
+        Zanoria::Git.reset!
+
+        expect(described_class.observed_state).to include('Earlier rounds: `.carrot-archive.md`')
+      end
+    end
+
+    it 'says nothing about an archive when there is none' do
+      in_repo do |dir|
+        commit_all(dir)
+        Zanoria::Git.reset!
+
+        expect(described_class.observed_state).not_to include('Earlier rounds')
       end
     end
 

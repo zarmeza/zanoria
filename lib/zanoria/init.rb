@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'date'
+
 module Zanoria
   # One-time setup for a repository: the note, the agent wiring, and the git
   # tracking that makes both of them durable.
@@ -125,7 +127,7 @@ module Zanoria
       path = Zanoria::Repo.path
       return [path, false] if File.exist?(path)
 
-      record = Record.new({ task: task.to_s }, path: path)
+      record = Record.new({ task: task.to_s }, path: path).with_started_at(Date.today.iso8601)
       [Store.write(path, Template.render(record)), true]
     end
 

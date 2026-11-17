@@ -73,8 +73,18 @@ module Zanoria
       # the state of the work belongs in Decisions or Open questions.
       body = observed_state if key == :state
       body = prompt_for(key) if prompt && body.strip.empty?
+      body = with_started(body, record.started_at) if key == :task
 
       body.strip
+    end
+
+    # The round start is machine-written but lives under the text a human wrote,
+    # as the last paragraph, so editing the task never has to move it.
+    def with_started(body, started_at)
+      return body if started_at.to_s.empty?
+
+      text = body.to_s.strip
+      text.empty? ? "_Started: #{started_at}_" : "#{text}\n\n_Started: #{started_at}_"
     end
 
     def prompt_for(key)
@@ -95,6 +105,7 @@ module Zanoria
 
       lines = identity_lines(snapshot[:branch], snapshot[:head])
       lines.concat(worktree_lines(snapshot[:dirty], identified: identified?(snapshot)))
+      lines.concat(archive_lines)
       lines.concat(commit_lines(snapshot[:commits]))
 
       return lines.join("\n") unless lines.empty?
@@ -130,6 +141,15 @@ module Zanoria
       dirty.first(LIST_LIMIT).each { |f| lines << "  - `#{f}`" }
       lines << "  - _…and #{dirty.size - LIST_LIMIT} more_" if dirty.size > LIST_LIMIT
       lines
+    end
+
+    # The archive is only discoverable if the note says it exists. `load` prints
+    # the file verbatim, so a pointer in State is what tells a reader that the
+    # earlier rounds are one file over rather than gone.
+    def archive_lines
+      return [] unless File.exist?(File.join(Zanoria::Repo.root, Archive::FILENAME))
+
+      ["- Earlier rounds: `#{Archive::FILENAME}`"]
     end
 
     def commit_lines(commits)

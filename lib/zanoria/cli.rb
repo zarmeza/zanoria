@@ -17,6 +17,7 @@ module Zanoria
         #{NAME} save [TASK]    write or update #{Zanoria::FILENAME} for the current repo
         #{NAME} load           print the current handoff note
         #{NAME} status         one-line summary, for a quick check
+        #{NAME} archive        move earlier rounds into #{Zanoria::Archive::FILENAME}
         #{NAME} clear          delete the current handoff note
         #{NAME} path           print the note's absolute path
         #{NAME} help           this message
@@ -29,6 +30,10 @@ module Zanoria
       #{NAME} save refuses to replace a Task section that holds more than the
       line being written. --replace-task allows it:
       #{NAME} save --replace-task "the new task".
+
+      #{NAME} archive moves dated blocks from earlier rounds into
+      #{Zanoria::Archive::FILENAME}, beside the note. #{NAME} save records the
+      round's start; only --replace-task begins a new one.
 
       In an agent session, start with `#{NAME} load` before working on anything
       a previous session left behind.
@@ -45,6 +50,7 @@ module Zanoria
       'save' => :save, 'new' => :save,
       'load' => :load, 'show' => :load, 'cat' => :load,
       'status' => :status, 'st' => :status,
+      'archive' => :archive,
       'clear' => :clear, 'rm' => :clear,
       'path' => :path,
       'help' => :help, '-h' => :help, '--help' => :help,
@@ -273,22 +279,27 @@ module Zanoria
         return 1
       end
 
-      record = Zanoria::Repo.current
-      task = record.task.strip.lines.first.to_s.strip
+      @out.puts Zanoria::Status.report(Zanoria::Repo.current, path: Zanoria::Repo.path)
 
-      @out.puts "task:     #{task.empty? ? '_(not written)_' : task}"
-      @out.puts "file:     #{Zanoria::Repo.path}"
-      @out.puts "sections: #{Zanoria::Status.written_summary(record)}"
-      @out.puts "extra:    #{Zanoria::Status.extra_summary(record)}" unless record.extra_sections.empty?
+      0
+    end
 
-      unpushed = Zanoria::Status.unpushed(Zanoria::Repo.path)
-      @out.puts unpushed if unpushed
+    # Move the rounds that ended before the recorded start into the archive.
+    #
+    # Explicit on purpose: a round is over when the operator says so, not when
+    # a heuristic guesses. The command refuses without a start date, because a
+    # note that has not been saved since this feature arrived has no boundary
+    # and moving blocks would be guesswork.
+    def archive(_argv = [])
+      prepare!
 
-      # A count cannot see a note that is wrong. These are the things that are
-      # wrong in a way a count cannot: content that a save would delete, a
-      # heading left behind twice, two headings that are the same section.
-      Zanoria::Lint.anomalies(record).each { |anomaly| @out.puts "warning:  #{anomaly}" }
+      unless Zanoria::Repo.exists?
+        @err.puts "#{NAME}: no #{Zanoria::FILENAME} in #{Zanoria::Repo.root}"
+        @err.puts 'Nothing was handed off yet.'
+        return 1
+      end
 
+      @out.puts Zanoria::Archive.run(note_path: Zanoria::Repo.path).message
       0
     end
 

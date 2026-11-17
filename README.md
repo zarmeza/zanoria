@@ -106,7 +106,8 @@ Upgrade omniauth-facebook
 | `zanoria init [TASK]` | Set a repo up: create the note, wire the instruction file the repo already has, stage both. |
 | `zanoria save [TASK]` | Write or update the note. Preserves sections you already wrote. |
 | `zanoria load` | Print the note. |
-| `zanoria status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. Warns when the note's commits are not pushed. |
+| `zanoria status` | Task summary plus how many of the five human sections are filled. `State` is machine-derived and not counted. Warns when the note's commits are not pushed, and when the note has grown past 32 KiB. |
+| `zanoria archive` | Move dated blocks from earlier rounds into `.carrot-archive.md`, beside the note. |
 | `zanoria clear` | Delete the note. |
 | `zanoria path` | Print the note's absolute path. |
 
@@ -116,6 +117,32 @@ Aliases: `new` for `save`, `setup` for `init`, `show`/`cat` for `load`, `st` for
 `save TASK` refuses to replace a `Task` section that holds more than the line you
 are writing, because those paragraphs exist nowhere else. Pass `--replace-task`
 when you mean to discard them.
+
+`save` records the round's start as `_Started: YYYY-MM-DD_` under the task text.
+A note written before the line existed gets today's date on its next save, once.
+Rewording a task keeps the date; only `--replace-task` begins a new round.
+
+## Old rounds
+
+The note is meant to stay readable, and a task can leave months of decisions
+behind. When a round is over, move its dated blocks out:
+
+```console
+$ zanoria archive
+Archived 12 block(s) into /home/you/Developer/my-project/.carrot-archive.md
+Wrote /home/you/Developer/my-project/.carrot.md (State names the archive)
+Commit both so the next tool sees them.
+```
+
+Only dated `###` blocks in `Decisions` and `Tried and failed` that are older than
+the recorded start move. The current round, undated blocks, `Open questions` and
+`Next action` stay in the live note. The archive is plain markdown, grouped under
+the section each block came from, and `State` names it so `load` reveals where the
+earlier rounds went.
+
+Nothing moves automatically: a round is over when you say so, not when a
+heuristic guesses. `status` warns once the note passes 32 KiB and names the
+command that fixes it.
 
 ## `init`
 

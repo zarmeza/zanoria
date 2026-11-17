@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'date'
+
 module Zanoria
   # A parsed handoff note.
   #
@@ -20,6 +22,12 @@ module Zanoria
 
     HEADING_RE = /\A##\s+(.+?)\s*\z/
 
+    # The round's start, machine-written at the bottom of the Task section.
+    #
+    # The trailing underscore is part of the shape: an ordinary sentence that
+    # happens to begin with `_Started:` is task text, not metadata.
+    STARTED_RE = /\A_Started:\s*(\d{4}-\d{2}-\d{2})_\s*\z/
+
     # The facts a parse produced that are not section content.
     #
     # One object rather than four constructor arguments. The count was
@@ -27,7 +35,7 @@ module Zanoria
     # collisions, and the byte count — and every new fact would have made the
     # signature longer. A Struct keeps the names checked: a typo is an
     # error, not a silently ignored keyword.
-    Meta = Struct.new(:headings, :preamble, :collisions, :invalid_bytes, keyword_init: true)
+    Meta = Struct.new(:headings, :preamble, :collisions, :invalid_bytes, :started_at, keyword_init: true)
 
     attr_reader :sections, :path, :meta
 
@@ -58,14 +66,36 @@ module Zanoria
       meta.invalid_bytes.to_i
     end
 
+    # The round's start date as `YYYY-MM-DD`, or nil when the note has none.
+    def started_at
+      meta.started_at
+    end
+
     # A copy of this record with a different task line.
     #
     # Everything else travels with it: the author's heading wording, the
-    # preamble, the collisions, and the byte count. A save rewrites the whole
-    # file, so anything left behind here is content that goes missing.
+    # preamble, the collisions, the byte count, and the round's start. A save
+    # rewrites the whole file, so anything left behind here is content that
+    # goes missing.
     def with_task(task)
       sections = @sections.dup
       sections[:task] = task unless task.to_s.empty?
+
+      Record.new(sections, path: path, meta: meta)
+    end
+
+    # A copy of this record with a different round start.
+    def with_started_at(date)
+      updated = meta.dup
+      updated.started_at = date
+
+      Record.new(@sections.dup, path: path, meta: updated)
+    end
+
+    # A copy of this record with one section body replaced.
+    def with_section(key, text)
+      sections = @sections.dup
+      sections[key] = text
 
       Record.new(sections, path: path, meta: meta)
     end
@@ -96,7 +126,45 @@ module Zanoria
 
       state[:sections][current] = buffer.join.strip if current
 
-      new_from(state, path, preamble.join.strip, invalid)
+      started_at = extract_started(state[:sections])
+
+      new_from(state, path, preamble.join.strip, invalid, started_at)
+    end
+
+    # Pull the round start out of the Task body.
+    #
+    # The line is metadata, not task text: leaving it in the body would make
+    # it a paragraph the save guard protects, so `save --replace-task` would
+    # still refuse to replace the very task the flag was given for. A line that
+    # does not hold a real date stays where it is, because a malformed note is
+    # content the tool must not delete.
+    def self.extract_started(sections)
+      body = sections[:task]
+      return if body.nil?
+
+      started_at = nil
+      kept = []
+      body.lines.each do |line|
+        date = started_date(line)
+        if date
+          started_at ||= date
+        else
+          kept << line
+        end
+      end
+
+      sections[:task] = kept.join.strip
+      started_at
+    end
+
+    # The date a `_Started:` line holds, or nil when the line is not one.
+    def self.started_date(line)
+      match = STARTED_RE.match(line.strip)
+      return unless match
+
+      Date.iso8601(match[1]).iso8601
+    rescue Date::Error
+      nil
     end
 
     # The text with its invalid bytes replaced, and how many there were.
@@ -118,7 +186,7 @@ module Zanoria
     end
 
     # The record a parse produced.
-    def self.new_from(state, path, preamble, invalid_bytes = 0)
+    def self.new_from(state, path, preamble, invalid_bytes = 0, started_at = nil)
       new(
         state[:sections],
         path: path,
@@ -126,7 +194,8 @@ module Zanoria
           headings: state[:headings],
           preamble: preamble,
           collisions: state[:collisions],
-          invalid_bytes: invalid_bytes
+          invalid_bytes: invalid_bytes,
+          started_at: started_at
         )
       )
     end

@@ -83,6 +83,40 @@ RSpec.describe Zanoria::Record do
       expect(described_class.parse(nil).sections).to eq({})
     end
 
+    describe 'the round start' do
+      it 'reads `_Started:` as metadata, not task text' do
+        record = described_class.parse("## Task\n\nShip #8.\n\n_Started: 2026-11-17_\n")
+
+        expect(record.task).to eq('Ship #8.')
+        expect(record.started_at).to eq('2026-11-17')
+      end
+
+      # Notes written before the line existed still have to parse, or every
+      # one of them breaks on the first read after an upgrade.
+      it 'leaves a note without a start alone' do
+        record = described_class.parse("## Task\n\nShip #8.\n")
+
+        expect(record.task).to eq('Ship #8.')
+        expect(record.started_at).to be_nil
+      end
+
+      # A malformed line is prose the author deliberately wrote. Treating it as
+      # metadata would delete it on the next save.
+      it 'keeps a malformed start in the task text' do
+        record = described_class.parse("## Task\n\n_Started: soon_\n")
+
+        expect(record.task).to eq('_Started: soon_')
+        expect(record.started_at).to be_nil
+      end
+
+      it 'keeps an impossible date in the task text' do
+        record = described_class.parse("## Task\n\n_Started: 2026-13-40_\n")
+
+        expect(record.task).to eq('_Started: 2026-13-40_')
+        expect(record.started_at).to be_nil
+      end
+    end
+
     # The project's own rule: never let a malformed note raise. A stray byte
     # from a pasted terminal snippet used to raise `ArgumentError` out of the
     # regex match and take the whole tool down.

@@ -43,6 +43,14 @@ RSpec.describe Zanoria::CLI do
         expect(out.index('init')).to be < out.index('save')
       end
     end
+
+    it 'documents the archive command' do
+      in_repo do |dir|
+        _status, out, = run_cli(['help'], dir: dir)
+
+        expect(out).to include('zanoria archive')
+      end
+    end
   end
 
   describe 'init' do
@@ -56,6 +64,29 @@ RSpec.describe Zanoria::CLI do
         expect(File.read(File.join(dir, 'AGENTS.md'))).to include('carrot-handoff:begin')
         expect(out).to include('created')
         expect(out).to include('wired')
+      end
+    end
+
+    it 'records the round start when it creates the note' do
+      in_repo do |dir|
+        commit_all(dir)
+        run_cli(['init'], dir: dir)
+
+        record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
+        expect(record.started_at).to eq(Date.today.iso8601)
+      end
+    end
+
+    it 'does not touch the start on a note that already exists' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nA.\n\n_Started: 2020-01-01_\n")
+        before = File.binread(path)
+
+        run_cli(['init'], dir: dir)
+
+        expect(File.binread(path)).to eq(before)
       end
     end
 
@@ -376,6 +407,64 @@ RSpec.describe Zanoria::CLI do
         expect(File.read(path)).to include("caf\uFFFD latte")
       end
     end
+
+    describe 'the round start' do
+      it 'records it on the first save' do
+        in_repo do |dir|
+          commit_all(dir)
+          run_cli(['save', 'A task'], dir: dir)
+
+          record = Zanoria::Record.load(File.join(dir, '.carrot.md'))
+          expect(record.started_at).to eq(Date.today.iso8601)
+        end
+      end
+
+      # A reword is not a new round. Resetting here would move the blocks of
+      # the round the save is still working on.
+      it 'keeps the recorded date when the task is reworded' do
+        in_repo do |dir|
+          commit_all(dir)
+          path = File.join(dir, '.carrot.md')
+          File.write(path, "## Task\n\nShip it.\n\n_Started: 2020-01-01_\n")
+
+          run_cli(['save', 'Better task'], dir: dir)
+
+          record = Zanoria::Record.load(path)
+          expect(record.task).to eq('Better task')
+          expect(record.started_at).to eq('2020-01-01')
+        end
+      end
+
+      it 'resets it when --replace-task asks for a new round' do
+        in_repo do |dir|
+          commit_all(dir)
+          path = File.join(dir, '.carrot.md')
+          File.write(path, "## Task\n\nShip it.\n\n_Started: 2020-01-01_\n")
+
+          run_cli(['save', '--replace-task', 'Something else'], dir: dir)
+
+          expect(Zanoria::Record.load(path).started_at).to eq(Date.today.iso8601)
+        end
+      end
+
+      # The backfill happens once and is written back. If it were computed on
+      # every save the start would follow the clock and the archive boundary
+      # would never settle.
+      it 'leaves the note byte-identical on a repeated save' do
+        in_repo do |dir|
+          commit_all(dir)
+          path = File.join(dir, '.carrot.md')
+          File.write(path, "## Task\n\nA task.\n")
+
+          run_cli(['save'], dir: dir)
+          first = File.binread(path)
+
+          run_cli(['save'], dir: dir)
+
+          expect(File.binread(path)).to eq(first)
+        end
+      end
+    end
   end
 
   describe 'load' do
@@ -533,6 +622,155 @@ RSpec.describe Zanoria::CLI do
 
         expect(status).to eq(0)
         expect(out).to match(/not valid UTF-8/)
+      end
+    end
+
+    describe 'the size warning' do
+      def note_of_size(bytes)
+        prefix = "## Task\n\nA.\n\n"
+        "#{prefix}#{'x' * (bytes - prefix.bytesize - 1)}\n"
+      end
+
+      it 'warns past 32 KiB and names the remedy' do
+        in_repo do |dir|
+          commit_all(dir)
+          path = File.join(dir, '.carrot.md')
+          File.write(path, note_of_size(Zanoria::Status::SIZE_LIMIT + 1))
+
+          _, out, = run_cli(['status'], dir: dir)
+
+          expect(out).to match(/warning:.*bytes/)
+          expect(out).to include('zanoria archive')
+        end
+      end
+
+      it 'stays silent at 32 KiB' do
+        in_repo do |dir|
+          commit_all(dir)
+          path = File.join(dir, '.carrot.md')
+          File.write(path, note_of_size(Zanoria::Status::SIZE_LIMIT))
+
+          _, out, = run_cli(['status'], dir: dir)
+
+          expect(out).not_to include('zanoria archive')
+        end
+      end
+
+      it 'does not block a save' do
+        in_repo do |dir|
+          commit_all(dir)
+          path = File.join(dir, '.carrot.md')
+          File.write(path, note_of_size(Zanoria::Status::SIZE_LIMIT + 1))
+
+          status, = run_cli(['save'], dir: dir)
+
+          expect(status).to eq(0)
+          expect(File.size(path)).to be > Zanoria::Status::SIZE_LIMIT
+        end
+      end
+    end
+  end
+
+  describe 'archive' do
+    let(:note) do
+      <<~MD
+        ## Task
+
+        Ship #8.
+
+        _Started: 2026-11-17_
+
+        ## Decisions
+
+        ### 2026-10-10
+
+        An old decision.
+
+        ### 2026-11-17
+
+        A decision from today.
+      MD
+    end
+
+    def write_note(dir, text)
+      File.write(File.join(dir, '.carrot.md'), text)
+    end
+
+    it 'moves earlier rounds into the archive and reports it' do
+      in_repo do |dir|
+        commit_all(dir)
+        write_note(dir, note)
+
+        status, out, = run_cli(['archive'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to include('Archived 1 block(s)')
+        expect(out).to include('.carrot-archive.md')
+        expect(File.read(File.join(dir, '.carrot.md'))).not_to include('An old decision.')
+        expect(File.read(File.join(dir, '.carrot-archive.md'))).to include('An old decision.')
+      end
+    end
+
+    # The archive is only discoverable if the re-rendered note points at it.
+    it 'names the archive in the note it writes' do
+      in_repo do |dir|
+        commit_all(dir)
+        write_note(dir, note)
+
+        run_cli(['archive'], dir: dir)
+
+        expect(File.read(File.join(dir, '.carrot.md'))).to include('Earlier rounds: `.carrot-archive.md`')
+      end
+    end
+
+    it 'fails when there is no note' do
+      in_repo do |dir|
+        commit_all(dir)
+        status, _out, err = run_cli(['archive'], dir: dir)
+
+        expect(status).to eq(1)
+        expect(err).to include('Nothing was handed off yet')
+      end
+    end
+
+    it 'says a save will record the start when the note has none' do
+      in_repo do |dir|
+        commit_all(dir)
+        path = File.join(dir, '.carrot.md')
+        File.write(path, "## Task\n\nA.\n\n## Decisions\n\n### 2020-01-01\n\nOld.\n")
+        before = File.binread(path)
+
+        status, out, = run_cli(['archive'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to include('save')
+        expect(File.binread(path)).to eq(before)
+        expect(File).not_to exist(File.join(dir, '.carrot-archive.md'))
+      end
+    end
+
+    it 'says when there is nothing to archive' do
+      in_repo do |dir|
+        commit_all(dir)
+        File.write(File.join(dir, '.carrot.md'), <<~MD)
+          ## Task
+
+          A.
+
+          _Started: 2020-01-01_
+
+          ## Decisions
+
+          ### 2020-01-01
+
+          This round.
+        MD
+
+        status, out, = run_cli(['archive'], dir: dir)
+
+        expect(status).to eq(0)
+        expect(out).to include('Nothing to archive')
+        expect(File).not_to exist(File.join(dir, '.carrot-archive.md'))
       end
     end
   end

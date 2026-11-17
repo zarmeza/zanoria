@@ -50,6 +50,11 @@ Then fill in, by hand, the sections only a human or agent can know:
 - `Open questions` — anything unverified or blocked, and only that. Once
   something is decided — including decided not to — it moves to `Decisions`.
 
+The note stays readable instead of growing forever: `save` records
+`_Started: YYYY-MM-DD_`, and when a round is over `bin/zanoria archive` moves
+its dated blocks into `.carrot-archive.md`, which `State` names. Only
+`--replace-task` begins a new round; rewording a task does not.
+
 Commit and push the note. A commit survives a context reset; only a push
 survives a machine swap. `State` is machine-derived and regenerates on every
 save; do not edit it.
@@ -68,6 +73,7 @@ and the whole thread if it is not.
 | `bin/zanoria save [TASK]` | Write or update the note. Keeps sections. |
 | `bin/zanoria load` | Print the note. |
 | `bin/zanoria status` | Task plus count of five human sections set. |
+| `bin/zanoria archive` | Move dated blocks from earlier rounds to `.carrot-archive.md`. |
 | `bin/zanoria clear` | Delete the note. |
 | `bin/zanoria path` | Absolute path to the note. |
 
