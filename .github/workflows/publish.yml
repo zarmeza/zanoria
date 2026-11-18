@@ -22,9 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Trusted Publishing. The token that proves this workflow ran in this
-      # repository is minted by GitHub and handed to RubyGems directly, so
-      # there is no API key to create, store, or rotate.
+      # OIDC. The token that proves this workflow ran in this repository is
+      # minted by GitHub and handed to RubyGems by assuming the OIDC API key
+      # role; there is no API key to create, store, or rotate.
       id-token: write
     environment: release
     steps:
@@ -73,20 +73,25 @@ jobs:
       - name: Build
         run: gem build zanoria.gemspec
 
-      # Trusted Publishing, in two steps rather than one action.
+      # RubyGems credentials, through the OIDC API key role.
       #
       # GitHub mints a short-lived OIDC token that proves this workflow ran
-      # in this repository, and RubyGems exchanges it for a short-lived push
-      # token. There is no API key to create, store, or rotate.
+      # in this repository, and RubyGems turns it into a short-lived push token
+      # by assuming the OIDC API key role named in `role-to-assume`. There is no
+      # API key to create, store, or rotate; the role token lives in a repository
+      # secret.
       #
-      # `rubygems/release-gem@v1` does this too, and then runs
-      # `bundle exec rake release` in the working directory — which in this
-      # repository is a task that guards a local release and pushes a *tag*,
-      # not one that pushes a gem. The publish step failed with "releases are
-      # cut from main, not HEAD", and the gem was never pushed. So the two
-      # things this workflow actually needs are done here, explicitly.
-      - name: Configure trusted publishing credentials
+      # Why the API key role and not the pending trusted publisher: the
+      # publisher flow refuses a first push of a brand-new gem unless the
+      # workflow declares the owning account when exchanging the OIDC token,
+      # and the released rubygems actions do not support that declaration yet.
+      # The key minted through a role is owned by the maintainer directly, which
+      # takes the new-gem authorization path that does not pass through the
+      # pending-publisher owner check.
+      - name: Configure RubyGems credentials
         uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+        with:
+          role-to-assume: ${{ secrets.RUBYGEMS_OIDC_API_KEY_ROLE }}
 
       # Only a tag publishes. A manual run gets as far as the exchange, which
       # is the link that has to work, and stops there.
